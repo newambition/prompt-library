@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Apply Inter font globally */
+body {
+  font-family: 'Inter', sans-serif;
+  /* Optional: Add base background and text colors if not done elsewhere */
+  /* background-color: theme('colors.gray.100'); */
+  /* color: theme('colors.gray.800'); */
+}
+
+/* Custom scrollbar for prompt list (applied via className in Sidebar) */
+.prompt-list::-webkit-scrollbar {
+  width: 6px;
+}
+.prompt-list::-webkit-scrollbar-track {
+  background: theme('colors.gray.100'); /* Consider using Tailwind colors e.g., theme('colors.gray.100') */
+  border-radius: 10px;
+}
+.prompt-list::-webkit-scrollbar-thumb {
+  background: theme('colors.slate.300'); /* slate-300 */
+  border-radius: 10px;
+}
+.prompt-list::-webkit-scrollbar-thumb:hover {
+  background: theme('colors.slate.400'); /* slate-400 */
+}
+
+/* Define custom component styles using @layer components if needed, */
+/* although Tailwind classes directly in JSX are often preferred. */
+/* Example: */
+/* @layer components {
+  .btn-primary {
+    @apply py-2 px-4 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75;
+  }
+} */
+
+/* Ensure you have imported the Inter font in your main HTML file (public/index.html) */
+/* or configure Tailwind to use it */
+/* Example for public/index.html:
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+*/
