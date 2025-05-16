@@ -318,7 +318,7 @@ function App() {
         onAddNewPrompt={handleAddNewPrompt} // Action will be gated by auth inside handler
         onFilterChange={handleFilterChange}
         availableTags={availableTags} // Show available tags even if not logged in
-        setShowSettingsModal={handleShowSettings} // Use the new handler
+        setShowSettingsModal={setShowSettingsModal} // Pass the real setter so modal can close
         showSettingsModal={showSettingsModal && isAuthenticated} // Only truly show if authenticated
         isAuthenticated={isAuthenticated}
         user={user}
