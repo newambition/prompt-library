@@ -1,38 +1,40 @@
-// src/components/PlaygroundView.js
+// frontend/src/components/PlaygroundView.js
 import React, { useState, useEffect } from 'react';
 
-/**
- * PlaygroundView component for editing and testing prompts side-by-side.
- * @param {object} props - Component props.
- * @param {object|null} props.prompt - The currently selected prompt object.
- * @param {string|null} props.selectedVersionId - The ID of the currently selected version.
- * @param {Function} props.onRunTest - Callback function to execute the prompt test.
- * @param {Function} props.onSaveAsNewVersion - Callback function to save the edited prompt as a new version.
- */
-function PlaygroundView({ prompt, selectedVersionId, onRunTest, onSaveAsNewVersion }) {
-  const [editedPromptText, setEditedPromptText] = useState('');
-  const [aiOutput, setAiOutput] = useState(''); // State to hold AI output
-  const [isLoading, setIsLoading] = useState(false); // State for loading indicator
+const LOGIN_REQUIRED_FOR_TEST_MESSAGE = "LOGIN_REQUIRED_FOR_TEST"; // Ensure this matches App.js
 
-  // Find the selected version object
+function PlaygroundView({ prompt, selectedVersionId, onRunTest, onSaveAsNewVersion, isAuthenticated, onLogin }) { // Added isAuthenticated and onLogin
+  const [editedPromptText, setEditedPromptText] = useState('');
+  const [aiOutput, setAiOutput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
   const selectedVersion = prompt?.versions?.[selectedVersionId];
 
-  // Update the editable prompt text when the selected version changes
   useEffect(() => {
     setEditedPromptText(selectedVersion?.text || '');
-    setAiOutput(''); // Clear previous output when version changes
-    setIsLoading(false); // Reset loading state
+    setAiOutput('');
+    setIsLoading(false);
   }, [selectedVersion]);
 
-  // Handler for the 'Run Test' button
   const handleRunTest = async () => {
-    if (!editedPromptText) return;
+    if (!editedPromptText.trim()) {
+        setAiOutput("Please enter some prompt text to test.");
+        return;
+    }
     setIsLoading(true);
-    setAiOutput('Running test...'); // Placeholder message
+    setAiOutput('Running test...');
     try {
-      // Simulate API call or call the actual test function
-      const result = await onRunTest(editedPromptText); // Assume onRunTest returns the AI output
-      setAiOutput(result || 'No output received.'); // Display result or fallback message
+      const result = await onRunTest(editedPromptText); // onRunTest comes from App.js
+      if (result === LOGIN_REQUIRED_FOR_TEST_MESSAGE) {
+        // Display the custom message and potentially a login button
+        setAiOutput(
+          <>
+            Please <button onClick={onLogin} className="text-blue-500 hover:underline">Login or Create an Account</button> to enter your API Key and run tests.
+          </>
+        );
+      } else {
+        setAiOutput(result || 'No output received.');
+      }
     } catch (error) {
       console.error("Error running test:", error);
       setAiOutput(`Error: ${error.message || 'Failed to run test.'}`);
@@ -41,19 +43,19 @@ function PlaygroundView({ prompt, selectedVersionId, onRunTest, onSaveAsNewVersi
     }
   };
 
-  // Handler for the 'Save as New Version' button
   const handleSave = () => {
+    if (!isAuthenticated) {
+        alert("Please log in to save changes."); // Use the constant from App.js or pass it as prop
+        if (onLogin) onLogin(); // Optionally trigger login
+        return;
+    }
     if (prompt && editedPromptText && editedPromptText !== selectedVersion?.text) {
       onSaveAsNewVersion(prompt.id, editedPromptText);
-      // Optional: Provide feedback to the user (e.g., confirmation message)
-      // Maybe switch back to details view or update version list?
     } else {
-        // Optional: Notify user that text hasn't changed or prompt is empty
         alert("Prompt text has not been changed or is empty.");
     }
   };
 
-  // If no prompt/version is selected, show placeholder
   if (!prompt || !selectedVersionId || !selectedVersion) {
     return (
       <div className="text-center text-gray-500 mt-10">
@@ -62,17 +64,15 @@ function PlaygroundView({ prompt, selectedVersionId, onRunTest, onSaveAsNewVersi
     );
   }
 
-  // Render the playground content
   return (
     <div className="h-full flex flex-col space-y-4">
-      <h3 className="text-lg font-medium">
-        Testing: <span className="font-semibold">{prompt.title}</span> -{' '}
-        <span className="font-semibold">{selectedVersionId}</span>
+      <h3 className="text-lg font-medium text-light">
+        Testing: <span className="font-semibold text-secondary">{prompt.title}</span> -{' '}
+        <span className="font-semibold text-light-secondary">{selectedVersionId}</span>
       </h3>
       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-hidden">
-        {/* Left Side: Editing Area */}
-        <div className="flex flex-col bg-white p-4 rounded-lg border border-gray-200 overflow-hidden">
-          <label htmlFor="editable-prompt" className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="flex flex-col bg-surface glass p-6 rounded-xl border border-light overflow-hidden">
+          <label htmlFor="editable-prompt" className="block text-sm font-medium text-light-secondary mb-2">
             Edit Prompt:
           </label>
           <textarea
@@ -80,43 +80,38 @@ function PlaygroundView({ prompt, selectedVersionId, onRunTest, onSaveAsNewVersi
             name="editable-prompt"
             value={editedPromptText}
             onChange={(e) => setEditedPromptText(e.target.value)}
-            className="flex-1 w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 resize-none mb-3"
+            className="flex-1 w-full p-3 border border-light rounded-lg text-sm bg-dark text-light focus:ring-secondary focus:border-secondary resize-none mb-3"
             placeholder="Enter or edit your prompt here..."
           />
-          <div className="mt-auto flex justify-between items-center pt-3 border-t border-gray-200"> {/* Ensure buttons are at bottom */}
+          <div className="mt-auto flex justify-between items-center pt-3 border-light-top">
             <button
               onClick={handleRunTest}
-              disabled={isLoading || !editedPromptText.trim()} // Disable if loading or empty
-              className={`bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed ${isLoading ? 'animate-pulse' : ''}`}
+              disabled={isLoading || !editedPromptText.trim()}
+              className={`btn-secondary font-medium py-2 px-4 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-sm ${isLoading ? 'animate-pulse' : ''}`}
             >
               {isLoading ? 'Running...' : 'Run Test'}
             </button>
             <button
               onClick={handleSave}
-              disabled={isLoading || !editedPromptText.trim() || editedPromptText === selectedVersion.text} // Disable if loading, empty, or unchanged
-              className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading || !editedPromptText.trim() || editedPromptText === selectedVersion.text}
+              className="btn-accent font-medium py-2 px-4 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
               Save as New Version
             </button>
           </div>
         </div>
-
-        {/* Right Side: AI Output Area */}
-        <div className="flex flex-col bg-white p-4 rounded-lg border border-gray-200 overflow-hidden">
-          <label htmlFor="ai-output" className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="flex flex-col bg-surface glass p-6 rounded-xl border border-light overflow-hidden">
+          <label htmlFor="ai-output" className="block text-sm font-medium text-light-secondary mb-2">
             AI Output:
           </label>
-          {/* Use 'pre' for potentially formatted AI output */}
-          <pre id="ai-output" className="flex-1 w-full p-2 border border-gray-200 bg-gray-50 rounded-md text-sm overflow-y-auto whitespace-pre-wrap break-words">
-            {aiOutput || <span className="text-gray-400 italic">Click 'Run Test' to see the AI output...</span>}
-          </pre>
+          <div id="ai-output" className="flex-1 w-full p-3 border border-light bg-dark text-light rounded-lg text-sm overflow-y-auto whitespace-pre-wrap break-words">
+            {aiOutput || <span className="text-light-tertiary italic">Click 'Run Test' to see the AI output...</span>}
+          </div>
         </div>
       </div>
-
-      {/* Comparison Area (Original Prompt) */}
-      <div className="bg-white p-4 rounded-lg border border-gray-200 mt-4 flex-shrink-0"> {/* Prevent shrinking */}
-        <h4 className="font-semibold mb-2">Original Prompt ({selectedVersionId}):</h4>
-        <pre className="bg-gray-100 p-3 rounded text-sm whitespace-pre-wrap break-words overflow-x-auto">
+      <div className="bg-surface glass p-6 rounded-xl border border-light mt-4 flex-shrink-0">
+        <h4 className="font-semibold mb-2 text-light">Original Prompt ({selectedVersionId}):</h4>
+        <pre className="bg-dark p-3 rounded text-sm text-light whitespace-pre-wrap break-words overflow-x-auto border border-light">
           {selectedVersion.text}
         </pre>
       </div>

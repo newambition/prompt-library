@@ -1,106 +1,135 @@
-// src/components/Sidebar.js
+// frontend/src/components/Sidebar.js
 import React from 'react';
-import { getTagClasses } from '../data'; // Import helper for tag styling
-import { FaCog } from 'react-icons/fa';
-import SettingsModal from './SettingsModal';
-/**
- * Sidebar component displaying the list of prompts and filters.
- * @param {object} props - Component props.
- * @param {Array} props.prompts - Array of prompt objects.
- * @param {string|null} props.selectedPromptId - The ID of the currently selected prompt.
- * @param {Function} props.onSelectPrompt - Callback function when a prompt is selected.
- * @param {Function} props.onAddNewPrompt - Callback function for the 'New Prompt' button.
- * @param {Function} props.onFilterChange - Callback function when the tag filter changes.
- * @param {Function} props.onLogin - Callback function for the 'Login' button.
- * @param {Function} props.setShowSettingsModal - Callback function for the 'Settings' button.
- * @param {boolean} props.showSettingsModal - Whether the settings modal is shown.
- * @param {Function} props.onShowSettingsModal - Callback function for the 'Settings' button.
- */
-function Sidebar({ prompts, selectedPromptId, onSelectPrompt, onAddNewPrompt, onFilterChange, onLogin, setShowSettingsModal, showSettingsModal, onShowSettingsModal }) {
+import { FaCog, FaSignInAlt, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
+import SettingsModal from './SettingsModal'; // Keep this import
+
+function Sidebar({
+  prompts,
+  selectedPromptId,
+  onSelectPrompt,
+  onAddNewPrompt, // This will be called, App.js will handle auth check
+  onFilterChange,
+  availableTags,
+  setShowSettingsModal, // This is now the gatekeeper function from App.js
+  showSettingsModal,    // To control modal visibility if user is authenticated
+  isAuthenticated,
+  user,
+  onLogin,
+  onLogout
+}) {
   return (
-    <aside className="w-1/4 lg:w-1/5 bg-white border-r border-gray-200 flex flex-col overflow-hidden h-screen">
-      {/* Header section with title and new prompt button */}
-      <div className="p-4 border-b border-gray-200">
-        <h2 className="text-xl font-semibold">My Prompts</h2>
+    <aside className="w-1/4 lg:w-1/5 bg-card border-light-right flex flex-col overflow-hidden h-screen text-light">
+      <div className="p-4  border-light-bottom mb-3">
+        <div className="flex flex-col mb-5">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-light relative" style={{lineHeight: '1.2'}}>
+              My Prompts
+              <span className="block h-0.5 w-8 mt-1 rounded bg-secondary absolute left-0 -bottom-2"></span>
+            </h2>
+            {isAuthenticated && user?.picture && (
+              <img src={user.picture} alt={user.name || 'User'} className="w-8 h-8 rounded-full border-2 border-primary" />
+            )}
+            {isAuthenticated && !user?.picture && user?.name && (
+               <div className="flex items-center text-sm text-light-secondary" title={user.name}>
+                  <FaUserCircle size={24} className="mr-2 text-primary" />
+                  <span className="truncate max-w-[100px]">{user.name.split('@')[0]}</span>
+               </div>
+            )}
+          </div>
+        </div>
         <button
           onClick={onAddNewPrompt}
-          className="mt-3 w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out"
+          className="w-full btn-primary font-medium py-3 px-4 rounded-xl transition duration-150 ease-in-out shadow-md text-xs mt-2 mb-2"
+          style={{minHeight: '44px'}}
         >
           + New Prompt
         </button>
-        {/* Tag Filter */}
         <div className="mt-4">
-          <label htmlFor="tag-filter" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="tag-filter" className="block text-sm font-medium text-light-secondary mb-1">
             Filter by Tag:
           </label>
           <select
             id="tag-filter"
             name="tag-filter"
-            onChange={onFilterChange} // Attach the filter change handler
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 bg-white"
+            onChange={onFilterChange}
+            className="block w-full rounded-md border-light shadow-sm focus:border-primary focus:ring-primary sm:text-sm p-2 bg-surface mb-2 text-light"
+            style={{minHeight: '36px'}}
           >
-            {/* Placeholder options - replace with dynamic tags */}
             <option value="">All Tags</option>
-            <option value="Marketing">Marketing</option>
-            <option value="Code Generation">Code Generation</option>
-            <option value="Summarization">Summarization</option>
-            <option value="Internal">Internal</option>
-            {/* TODO: Dynamically generate options based on available tags */}
+            {availableTags.map((tag) => (
+              <option key={tag.name} value={tag.name}>
+                {tag.name}
+              </option>
+            ))}
           </select>
         </div>
       </div>
 
-      {/* Scrollable list of prompts */}
-      <nav className="flex-1 overflow-y-auto prompt-list p-2 space-y-1">
-        {prompts.map((prompt) => (
-          <a
-            key={prompt.id}
-            href={`/prompt/${prompt.id}`}
-            onClick={(e) => {
-              e.preventDefault();
-              onSelectPrompt(prompt.id); // Call the selection handler
-            }}
-            // Apply active styles conditionally
-            className={`block p-3 rounded-lg hover:bg-gray-100 transition duration-150 ease-in-out ${
-              prompt.id === selectedPromptId
-                ? 'bg-sky-100 border-l-4 border-sky-500' // Active prompt style
-                : ''
-            }`}
-          >
-            <h3 className="font-medium text-gray-900 truncate">{prompt.title}</h3>
-            <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-1 items-center">
-              <span>Latest: {prompt.latestVersion} | Tags:</span>
-              {prompt.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className={`${getTagClasses(tag)} text-xs font-medium px-1.5 py-0.5 rounded`}
-                >
-                  {tag}
-                </span>
-              ))}
-               {prompt.tags.length === 0 && <span className="italic">No tags</span>}
-            </div>
-          </a>
-        ))}
-         {prompts.length === 0 && (
-            <p className="p-3 text-sm text-gray-500 italic">No prompts found.</p>
+      <nav className="flex-1 overflow-y-auto prompt-list p-2 space-y-3">
+        {prompts.map((prompt) => {
+          const isSelected = prompt.id === selectedPromptId;
+          return (
+            <a
+              key={prompt.id}
+              href={`/prompt/${prompt.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onSelectPrompt(prompt.id);
+              }}
+              className={`block p-3 rounded-xl transition duration-150 ease-in-out bg-surface ${
+                isSelected
+                  ? 'border-l-4 border-primary-left shadow-primary shadow-lg border-solid'
+                  : 'border-l-4 border-transparent border-solid'
+              } cursor-pointer`}
+              style={{minHeight: '64px'}}
+            >
+              <h3 className={`font-semibold truncate text-base ${isSelected ? 'text-secondary' : 'text-light'}`}>{prompt.title}</h3>
+              <div className="text-xs text-light-secondary mt-1 flex flex-wrap gap-1 items-center">
+                <span>Latest: {prompt.latest_version} | Tags:</span>
+                {prompt.tags && prompt.tags.map((tag) => (
+                  <span
+                    key={tag.name}
+                    className={`tag-${tag.color || 'new'} px-1.5 py-0.5 rounded text-xs font-medium`}
+                  >
+                    {tag.name}
+                  </span>
+                ))}
+                 {(!prompt.tags || prompt.tags.length === 0) && <span className="italic">No tags</span>}
+              </div>
+            </a>
+          );
+        })}
+         {prompts.length === 0 && isAuthenticated && (
+            <p className="p-3 text-sm text-light-secondary italic">No prompts found. Click "+ New Prompt" to create one.</p>
+        )}
+        {prompts.length === 0 && !isAuthenticated && (
+            <p className="p-3 text-sm text-light-secondary italic">Log in to see and save your prompts.</p>
         )}
       </nav>
-      <div className="p-4 flex gap-2 border-t border-gray-200">
+      <div className="p-4 flex gap-2  items-center border-light-top">
+        {isAuthenticated ? (
+          <button
+            onClick={onLogout}
+            className="flex-1 flex items-center justify-left text-light-secondary hover:text-light font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out hover:bg-dark"
+          >
+            <FaSignOutAlt className="mr-2" /> Logout
+          </button>
+        ) : (
+          <button
+            onClick={onLogin}
+            className="flex-1 flex items-center justify-left text-light-secondary hover:text-light font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out hover:bg-dark"
+          >
+             <FaSignInAlt className="mr-2" /> Login
+          </button>
+        )}
         <button
-          onClick={onLogin}
-          className="w-full flex items-center justify-center text-gray-500 hover:text-gray-700 text-sm rounded-lg transition duration-150 ease-in-out"
+          onClick={setShowSettingsModal}
+          className="p-2 text-light-secondary hover:text-primary rounded-lg transition duration-150 ease-in-out hover:bg-dark"
+          title="Settings"
         >
-          Login
+          <FaCog size={20} />
         </button>
-        <button
-          onClick={() => setShowSettingsModal(true)}
-          className="w-full flex items-center justify-center text-gray-500 hover:text-gray-700 text-sm rounded-lg transition duration-150 ease-in-out"
-        >
-          <FaCog className="mr-2" />
-        </button>
-        <SettingsModal showSettingsModal={showSettingsModal} setShowSettingsModal={setShowSettingsModal} />
-       
+        {isAuthenticated && showSettingsModal && <SettingsModal showSettingsModal={showSettingsModal} setShowSettingsModal={setShowSettingsModal} />}
       </div>
     </aside>
   );

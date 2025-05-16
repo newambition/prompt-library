@@ -1,20 +1,17 @@
-# Contains functions for Create, Read, Update, Delete (CRUD) operations
-# interacting with the database via SQLAlchemy models.
+# backend/src/crud.py
 
-from sqlalchemy.orm import Session
-from sqlalchemy import select, delete, update
-from typing import List, Optional, Dict
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import select, delete, update, func
+from typing import List, Optional, Dict, Any
 
-from src import models
-from src import schemas
+from src import models # SQLAlchemy models
+from src import schemas # Pydantic models
 import datetime
 
 # --- Helper Functions ---
 
 def get_next_prompt_id_db(db: Session) -> str:
     """Generates the next sequential prompt ID based on DB data."""
-    # Query the highest prompt number from the prompt_id column
-    # This is less efficient than sequence/auto-increment but matches previous logic
     last_prompt = db.query(models.PromptDB).order_by(models.PromptDB.id.desc()).first()
     if not last_prompt or not last_prompt.prompt_id.startswith("prompt"):
         return "prompt1"
@@ -22,18 +19,17 @@ def get_next_prompt_id_db(db: Session) -> str:
         last_num = int(last_prompt.prompt_id[len("prompt"):])
         return f"prompt{last_num + 1}"
     except ValueError:
-        # Fallback if parsing fails (shouldn't happen with correct data)
-        return f"prompt{last_prompt.id + 1}" # Use DB ID as fallback
+        return f"prompt{last_prompt.id + 1}"
 
 def get_next_version_id_db(prompt: models.PromptDB) -> str:
-    """Generates the next sequential version ID for a given prompt."""
+    """Generates the next sequential version ID for a given prompt (e.g., v1, v2)."""
     if not prompt.versions:
         return "v1"
     max_num = 0
-    for version in prompt.versions:
-        if version.version_id.startswith("v"):
+    for version_db in prompt.versions:
+        if version_db.version_id.startswith("v"):
             try:
-                num = int(version.version_id[len("v"):])
+                num = int(version_db.version_id[len("v"):])
                 if num > max_num:
                     max_num = num
             except ValueError:
@@ -47,13 +43,32 @@ def get_current_date_str() -> str:
 def _map_prompt_db_to_schema(prompt_db: models.PromptDB) -> schemas.Prompt:
     """Helper to map SQLAlchemy PromptDB model to Pydantic Prompt schema."""
     versions_dict: Dict[str, schemas.Version] = {}
-    for version_db in prompt_db.versions:
-        versions_dict[version_db.version_id] = schemas.Version.model_validate(version_db) # Use model_validate for Pydantic v2
+    # Sort versions by date descending, then by version_id (numeric part) descending
+    sorted_db_versions = sorted(
+        prompt_db.versions,
+        key=lambda v: (
+            datetime.datetime.strptime(v.date, '%Y-%m-%d').date() if isinstance(v.date, str) else v.date,
+            -int(v.version_id[1:]) if v.version_id.startswith('v') and v.version_id[1:].isdigit() else 0
+        ),
+        reverse=True
+    )
+    for version_db in sorted_db_versions:
+        # Map SQLAlchemy VersionDB to Pydantic Version schema
+        versions_dict[version_db.version_id] = schemas.Version(
+            id=version_db.id, # This is the integer PK
+            version_id=version_db.version_id, # This is the "vN" string
+            text=version_db.text,
+            notes=version_db.notes,
+            date=version_db.date
+        )
+    
+    # Map tags from list of dicts in DB to list of Pydantic Tag schemas
+    tags_list = [schemas.Tag(name=t.get("name"), color=t.get("color")) for t in prompt_db.tags if isinstance(t, dict) and "name" in t and "color" in t]
 
     return schemas.Prompt(
         id=prompt_db.prompt_id,
         title=prompt_db.title,
-        tags=prompt_db.tags, # Assumes tags are stored as a list in JSON
+        tags=tags_list,
         versions=versions_dict,
         latest_version=prompt_db.latest_version
     )
@@ -61,51 +76,52 @@ def _map_prompt_db_to_schema(prompt_db: models.PromptDB) -> schemas.Prompt:
 # --- Prompt CRUD ---
 
 def get_prompt_by_prompt_id(db: Session, prompt_id: str) -> Optional[models.PromptDB]:
-    """Retrieves a prompt by its string ID (e.g., 'prompt1')."""
-    return db.execute(
-        select(models.PromptDB).where(models.PromptDB.prompt_id == prompt_id)
-    ).scalar_one_or_none()
+    """Retrieves a prompt by its string ID, with versions eagerly loaded."""
+    return db.query(models.PromptDB).\
+        options(joinedload(models.PromptDB.versions)).\
+        filter(models.PromptDB.prompt_id == prompt_id).\
+        first()
 
 def get_prompts(db: Session, skip: int = 0, limit: int = 100) -> List[models.PromptDB]:
-    """Retrieves a list of prompts with pagination."""
-    return db.execute(
-        select(models.PromptDB).offset(skip).limit(limit)
-    ).scalars().all()
+    """Retrieves a list of prompts with pagination, with versions eagerly loaded."""
+    return db.query(models.PromptDB).\
+        options(joinedload(models.PromptDB.versions)).\
+        order_by(models.PromptDB.id).\
+        offset(skip).\
+        limit(limit).\
+        all()
 
 def create_db_prompt(db: Session, prompt_data: schemas.PromptCreate) -> models.PromptDB:
-    """Creates a new prompt record in the database with its initial version."""
+    """Creates a new prompt record with an initial version and tags."""
     db_prompt_id = get_next_prompt_id_db(db)
-    initial_version_id = "v1"
+    initial_version_id_str = "v1"
 
-    # Create the PromptDB instance
+    # Convert Pydantic TagCreate objects to dictionaries for JSON storage
+    tags_to_store = [tag.model_dump() for tag in prompt_data.tags]
+
     db_prompt = models.PromptDB(
         prompt_id=db_prompt_id,
         title=prompt_data.title,
-        tags=prompt_data.tags if prompt_data.tags else [],
-        latest_version=initial_version_id
+        tags=tags_to_store, # Store as list of dicts
+        latest_version=initial_version_id_str
     )
     db.add(db_prompt)
-    # Must flush to get the db_prompt.id assigned if needed for the version's foreign key
     db.flush()
 
-    # Create the initial VersionDB instance linked to the prompt
     db_version = models.VersionDB(
-        version_id=initial_version_id,
+        version_id=initial_version_id_str,
         date=get_current_date_str(),
         text=prompt_data.initial_version_text,
         notes=prompt_data.initial_version_notes,
-        prompt_db_id=db_prompt.id # Link using the generated primary key
+        prompt_db_id=db_prompt.id
     )
     db.add(db_version)
 
-    # Commit the transaction to save both prompt and version
     db.commit()
-    # Refresh the prompt instance to load the newly added version relationship
     db.refresh(db_prompt)
     return db_prompt
 
 def delete_db_prompt(db: Session, prompt_id: str) -> bool:
-    """Deletes a prompt and its associated versions from the database."""
     db_prompt = get_prompt_by_prompt_id(db, prompt_id)
     if db_prompt:
         db.delete(db_prompt)
@@ -113,110 +129,108 @@ def delete_db_prompt(db: Session, prompt_id: str) -> bool:
         return True
     return False
 
+def update_db_prompt(db: Session, prompt_id: str, update_data: schemas.PromptUpdate) -> Optional[models.PromptDB]:
+    db_prompt = get_prompt_by_prompt_id(db, prompt_id)
+    if not db_prompt:
+        return None
+    
+    updated_fields = False
+    if update_data.title is not None:
+        db_prompt.title = update_data.title
+        updated_fields = True
+    
+    if update_data.tags is not None:
+        # Convert list of Pydantic TagCreate models to list of dicts for JSON storage
+        db_prompt.tags = [tag.model_dump() for tag in update_data.tags]
+        updated_fields = True
+
+    if updated_fields:
+        db.add(db_prompt)
+        db.commit()
+        db.refresh(db_prompt)
+    return db_prompt
+
 # --- Version CRUD ---
 
 def create_db_version(db: Session, prompt_id: str, version_data: schemas.VersionCreate) -> Optional[models.VersionDB]:
-    """Creates a new version record for an existing prompt."""
     db_prompt = get_prompt_by_prompt_id(db, prompt_id)
     if not db_prompt:
-        return None # Prompt not found
+        return None
 
-    new_version_id = get_next_version_id_db(db_prompt)
-
-    # Create the new version instance
+    new_version_id_str = get_next_version_id_db(db_prompt)
     db_version = models.VersionDB(
-        version_id=new_version_id,
+        version_id=new_version_id_str,
         date=get_current_date_str(),
         text=version_data.text,
         notes=version_data.notes,
         prompt_db_id=db_prompt.id
     )
     db.add(db_version)
-
-    # Update the prompt's latest_version field
-    db_prompt.latest_version = new_version_id
-    db.add(db_prompt) # Add prompt back to session to track changes
-
+    db_prompt.latest_version = new_version_id_str
+    db.add(db_prompt)
     db.commit()
     db.refresh(db_version)
-    db.refresh(db_prompt) # Refresh prompt to reflect latest_version change
+    db.refresh(db_prompt)
     return db_version
 
-def update_db_version_notes(db: Session, prompt_id: str, version_id: str, notes: Optional[str]) -> Optional[models.VersionDB]:
-    """Updates the notes for a specific version."""
+def update_db_version_notes(db: Session, prompt_id: str, version_id_str: str, notes: Optional[str]) -> Optional[models.VersionDB]:
     db_prompt = get_prompt_by_prompt_id(db, prompt_id)
     if not db_prompt:
         return None
-
-    # Find the specific version within the prompt's versions
-    db_version = None
-    for v in db_prompt.versions:
-        if v.version_id == version_id:
-            db_version = v
-            break
-
-    if not db_version:
-        return None # Version not found
-
-    db_version.notes = notes
-    db.add(db_version)
+    db_version_to_update = next((v for v in db_prompt.versions if v.version_id == version_id_str), None)
+    if not db_version_to_update:
+        return None
+    db_version_to_update.notes = notes
+    db.add(db_version_to_update)
     db.commit()
-    db.refresh(db_version)
-    return db_version
+    db.refresh(db_version_to_update)
+    return db_version_to_update
 
 # --- Tag CRUD ---
 
-def add_db_tag(db: Session, prompt_id: str, tag: str) -> Optional[models.PromptDB]:
-    """Adds a tag to a prompt's tag list if it doesn't exist."""
+def add_db_tag(db: Session, prompt_id: str, tag_create_data: schemas.TagCreate) -> Optional[models.PromptDB]:
+    """Adds a tag (name and color) to a prompt. If tag name exists, updates color."""
     db_prompt = get_prompt_by_prompt_id(db, prompt_id)
     if not db_prompt:
         return None
 
-    # Ensure tags attribute is treated as mutable if using JSON
-    # This might require specific handling depending on the DB/SQLAlchemy version
-    # For simplicity, we retrieve, modify, and update
-    current_tags = list(db_prompt.tags) # Create a mutable copy
-    if tag not in current_tags:
-        current_tags.append(tag)
-        db_prompt.tags = current_tags # Assign the modified list back
-        db.add(db_prompt)
-        db.commit()
-        db.refresh(db_prompt)
+    # Ensure tags is a list of dictionaries
+    current_tags: List[Dict[str, Any]] = [dict(t) for t in db_prompt.tags if isinstance(t, dict)]
+    
+    tag_name_exists = False
+    for i, existing_tag_dict in enumerate(current_tags):
+        if existing_tag_dict.get("name") == tag_create_data.name:
+            # Update color if tag name already exists
+            current_tags[i]["color"] = tag_create_data.color
+            tag_name_exists = True
+            break
+    
+    if not tag_name_exists:
+        current_tags.append(tag_create_data.model_dump()) # Add new tag object
+
+    db_prompt.tags = current_tags # Assign the modified list back
+    db.add(db_prompt)
+    db.commit()
+    db.refresh(db_prompt)
     return db_prompt
 
-def remove_db_tag(db: Session, prompt_id: str, tag: str) -> Optional[models.PromptDB]:
-    """Removes a tag from a prompt's tag list if it exists."""
+def remove_db_tag(db: Session, prompt_id: str, tag_name: str) -> Optional[models.PromptDB]:
+    """Removes a tag from a prompt's tag list by its name."""
     db_prompt = get_prompt_by_prompt_id(db, prompt_id)
     if not db_prompt:
         return None
 
-    current_tags = list(db_prompt.tags)
-    if tag in current_tags:
-        current_tags.remove(tag)
-        db_prompt.tags = current_tags
-        db.add(db_prompt)
-        db.commit()
-        db.refresh(db_prompt)
-        return db_prompt
-    else:
-        # Tag not found, return the prompt as is or raise an error?
-        # Returning prompt is consistent with adding an existing tag.
-        return db_prompt
+    # Ensure tags is a list of dictionaries
+    current_tags: List[Dict[str, Any]] = [dict(t) for t in db_prompt.tags if isinstance(t, dict)]
+    
+    original_length = len(current_tags)
+    # Filter out the tag by name
+    updated_tags = [tag_dict for tag_dict in current_tags if tag_dict.get("name") != tag_name]
 
-def update_db_prompt(db: Session, prompt_id: str, update_data: schemas.PromptUpdate) -> Optional[models.PromptDB]:
-    """Updates a prompt's title and/or tags."""
-    db_prompt = get_prompt_by_prompt_id(db, prompt_id)
-    if not db_prompt:
-        return None
-    updated = False
-    if update_data.title is not None:
-        db_prompt.title = update_data.title
-        updated = True
-    if update_data.tags is not None:
-        db_prompt.tags = update_data.tags
-        updated = True
-    if updated:
+    if len(updated_tags) < original_length: # If a tag was actually removed
+        db_prompt.tags = updated_tags
         db.add(db_prompt)
         db.commit()
         db.refresh(db_prompt)
+    
     return db_prompt
