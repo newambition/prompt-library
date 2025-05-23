@@ -1,13 +1,14 @@
 # Defines SQLAlchemy ORM models corresponding to database tables
 
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Text, ForeignKey, JSON, Index
+    create_engine, Column, Integer, String, Text, ForeignKey, JSON, Index, DateTime, func, LargeBinary
 )
 from sqlalchemy.orm import relationship, declarative_base, Mapped, mapped_column
 from sqlalchemy.ext.mutable import MutableDict # Needed for JSON mutation tracking
 from typing import List, Optional
+import datetime # Add this import
 
-from database import Base # Import Base from database.py
+from .database import Base # Import Base from database.py
 
 # --- SQLAlchemy Models ---
 
@@ -56,3 +57,18 @@ class VersionDB(Base):
 # Note: We are storing versions directly related to a prompt.
 # The 'versions' dictionary and 'latest_version' string in the Pydantic 'Prompt' schema
 # will be constructed dynamically from these related VersionDB objects in the CRUD layer.
+
+class UserApiKeyDB(Base):
+    __tablename__ = "user_api_keys"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[str] = mapped_column(String, index=True, nullable=False) # From Auth0 sub
+    llm_provider: Mapped[str] = mapped_column(String, nullable=False) # e.g., "gemini", "openai"
+    encrypted_api_key: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    masked_api_key: Mapped[str] = mapped_column(String, nullable=False) # e.g., "sk-...xxxx"
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index('ix_user_api_key_user_id_llm_provider', 'user_id', 'llm_provider', unique=True),
+    )

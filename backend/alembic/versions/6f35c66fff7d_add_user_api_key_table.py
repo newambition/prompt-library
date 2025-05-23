@@ -1,8 +1,8 @@
-"""Initial migration
+"""add_user_api_key_table
 
-Revision ID: a59fcd4f6f31
-Revises: 
-Create Date: 2025-05-13 00:27:57.582861
+Revision ID: 6f35c66fff7d
+Revises: 0137e3a44808
+Create Date: 2025-05-23 00:42:00.072333
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'a59fcd4f6f31'
-down_revision: Union[str, None] = None
+revision: str = '6f35c66fff7d'
+down_revision: Union[str, None] = '0137e3a44808'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -34,6 +34,21 @@ def upgrade() -> None:
         batch_op.create_index(batch_op.f('ix_prompts_id'), ['id'], unique=False)
         batch_op.create_index(batch_op.f('ix_prompts_prompt_id'), ['prompt_id'], unique=True)
         batch_op.create_index(batch_op.f('ix_prompts_title'), ['title'], unique=False)
+
+    op.create_table('user_api_keys',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.String(), nullable=False),
+    sa.Column('llm_provider', sa.String(), nullable=False),
+    sa.Column('encrypted_api_key', sa.LargeBinary(), nullable=False),
+    sa.Column('masked_api_key', sa.String(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('user_api_keys', schema=None) as batch_op:
+        batch_op.create_index('ix_user_api_key_user_id_llm_provider', ['user_id', 'llm_provider'], unique=True)
+        batch_op.create_index(batch_op.f('ix_user_api_keys_id'), ['id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_user_api_keys_user_id'), ['user_id'], unique=False)
 
     op.create_table('versions',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -62,6 +77,12 @@ def downgrade() -> None:
         batch_op.drop_index('ix_version_prompt_id_version_id')
 
     op.drop_table('versions')
+    with op.batch_alter_table('user_api_keys', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_user_api_keys_user_id'))
+        batch_op.drop_index(batch_op.f('ix_user_api_keys_id'))
+        batch_op.drop_index('ix_user_api_key_user_id_llm_provider')
+
+    op.drop_table('user_api_keys')
     with op.batch_alter_table('prompts', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_prompts_title'))
         batch_op.drop_index(batch_op.f('ix_prompts_prompt_id'))

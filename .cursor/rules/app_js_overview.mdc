@@ -1,0 +1,43 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# App.js Overview
+
+The `[frontend/src/App.js](mdc:frontend/src/App.js)` file is the main component of the React frontend application. Its primary responsibilities include:
+
+*   **State Management**: It manages core application state using React hooks (`useState`, `useCallback`, `useMemo`, `useEffect`). This includes:
+    *   `promptsData`: The collection of all prompts, fetched from the backend.
+    *   `selectedPromptId` and `selectedVersionId`: The currently active prompt and its version.
+    *   `currentView`: Controls which part of the UI is displayed (e.g., 'details', 'playground').
+    *   `activeFilterTag`: The tag used to filter the list of prompts.
+    *   `showSettingsModal`: Boolean to control the visibility of the settings modal.
+    *   `showNewPromptModal`: Boolean to control the visibility of the new prompt creation modal.
+    *   Loading and error states for data fetching (`dataLoading`, `error`).
+*   **Authentication**: It integrates with Auth0 using `@auth0/auth0-react` for user authentication.
+    *   It handles login (`loginWithRedirect`), logout, and securely retrieves access tokens (`getAuthToken` using `getAccessTokenSilently`).
+    *   Many actions (saving, creating, deleting prompts, running tests, accessing settings) are gated based on the `isAuthenticated` status.
+*   **API Interaction**: It orchestrates API calls to the backend via functions in `[frontend/src/api.js](mdc:frontend/src/api.js)` for operations such as:
+    *   Fetching, creating, updating, and deleting prompts (`apiFetchPrompts`, `apiCreatePrompt`, `apiUpdatePrompt`, `apiDeletePrompt`).
+    *   Managing prompt versions (`apiCreateVersion`, `apiUpdateVersionNotes`).
+    *   Handling tags (`apiAddTag`, `apiRemoveTag`).
+    *   Running playground tests (`apiRunPlaygroundTest`).
+    *   **Planned API Interactions (from `deployment_plan.md`):**
+        *   CRUD operations for user-specific LLM API keys via `SettingsModal.js` (e.g., `apiCreateUserApiKey`, `apiGetUserApiKeys`, etc. - functions to be added to `api.js`).
+        *   Modifying `apiRunPlaygroundTest` to accept an `llm_provider` and potentially a `model_id` to support multi-model testing, using the user's stored API key for that provider.
+*   **UI Rendering**: It renders the main layout of the application, including:
+    *   `[frontend/src/components/Sidebar.js](mdc:frontend/src/components/Sidebar.js)`: For navigation, prompt listing, filtering, user actions (login/logout), and accessing settings.
+    *   `[frontend/src/components/MainContent.js](mdc:frontend/src/components/MainContent.js)`: To display the `DetailsView.js` or `PlaygroundView.js` based on `currentView`.
+    *   `[frontend/src/components/NewPromptModal.js](mdc:frontend/src/components/NewPromptModal.js)`: For creating new prompts.
+    *   `[frontend/src/components/SettingsModal.js](mdc:frontend/src/components/SettingsModal.js)` (Planned to be fully integrated): For managing user settings, primarily LLM API keys.
+*   **Event Handling**: It defines and passes down callback functions to child components to handle user interactions. Examples:
+    *   `handleSelectPrompt`, `handleSelectVersion`: For navigation.
+    *   `handleSaveNotes`, `handleAddTag`, `handleRemoveTag`, `handleSaveAsNewVersion`, `handleDeletePrompt`, `handleRenamePrompt`: For prompt and version modifications.
+    *   `handleSubmitNewPrompt`: For creating new prompts via the modal.
+    *   `handleRunTest`: For executing playground tests.
+    *   `handleLogin`, `handleLogout`, `handleShowSettings`: For user authentication and settings access.
+    *   `handleFilterChange`: For updating the tag filter.
+*   **Planned Enhancements (from `deployment_plan.md`):**
+    *   Passing down necessary props to `PlaygroundView.js` for model selection (e.g., list of available models, current selection).
+    *   Logic to handle monetization features, potentially by adjusting available features or making different API calls based on user subscription tier (details TBD).

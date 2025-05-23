@@ -75,3 +75,22 @@ class PlaygroundResponse(BaseModel):
     output_text: Optional[str] = None
     error: Optional[str] = None
 
+
+# --- User API Key Schemas ---
+class UserApiKeyBase(BaseModel):
+    llm_provider: str = Field(..., description="The name of the LLM provider (e.g., 'gemini', 'openai')")
+
+class UserApiKeyCreate(UserApiKeyBase):
+    api_key_plain: str = Field(..., description="The plain text API key")
+
+class UserApiKeyUpdate(BaseModel):
+    new_api_key_plain: str = Field(..., description="The new plain text API key")
+
+class UserApiKey(UserApiKeyBase):
+    id: int
+    masked_api_key: str
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+
+    model_config = ConfigDict(from_attributes=True)
+

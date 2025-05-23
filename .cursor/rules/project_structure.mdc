@@ -1,0 +1,39 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Structure Overview
+
+This project, `prompt-library`, is organized into a backend and a frontend:
+
+*   **`backend/`**: This directory contains the server-side Python-based API service.
+    *   **Frameworks & Libraries**: It utilizes FastAPI for the API framework, SQLAlchemy for ORM (database interaction with PostgreSQL), and Alembic for database migrations.
+    *   **Core Responsibilities**: Handles business logic, data persistence (prompts, versions, tags, user API keys), user authentication token validation, and processes requests from the frontend.
+    *   **Key Modules (Current & Planned):**
+        *   `main.py` (or similar): Main FastAPI application setup and core routers.
+        *   `src/models/`: Contains SQLAlchemy models (e.g., `PromptDB`, `VersionDB`, `TagDB`, and planned `UserApiKeyDB`).
+        *   `src/crud/`: Functions for database operations (e.g., `crud_prompts.py`, planned `crud_api_keys.py`).
+        *   `src/routers/`: API endpoint definitions (e.g., `prompts.py`, planned `user_settings.py` for API key management).
+        *   `src/schemas/`: Pydantic schemas for request/response validation.
+        *   `src/auth/`: Authentication logic (e.g., token verification).
+        *   `alembic/`: Alembic migration scripts and configuration.
+    *   **Planned Enhancements (from `deployment_plan.md`):**
+        *   Secure API key management for users (CRUD operations, encryption at rest).
+        *   Abstraction layer for multi-model AI support (e.g., OpenAI, Anthropic in addition to Gemini).
+        *   Backend logic for monetization features (tiered access, usage tracking).
+
+*   **`frontend/`**: This directory houses the client-side React application, responsible for the user interface and interactions.
+    *   **Main Component**: `[frontend/src/App.js](mdc:frontend/src/App.js)` serves as the central orchestrator for UI and state.
+    *   **Dependency Management**: `package.json` in the root of the `frontend/` directory manages dependencies (React, Auth0 SDK, etc.) and scripts (`start`, `build`).
+    *   **Key Components & Structure:**
+        *   `src/components/`: Contains reusable UI components like `Sidebar.js`, `MainContent.js`, `DetailsView.js`, `PlaygroundView.js`, `NewPromptModal.js`, and the planned `SettingsModal.js`.
+        *   `src/api.js`: Centralizes functions for making calls to the backend API.
+        *   `src/auth0-provider-with-history.js`: Configures the Auth0 React SDK.
+        *   `src/index.css` & Tailwind CSS: Used for styling the application.
+    *   **Planned Enhancements (from `deployment_plan.md`):**
+        *   `SettingsModal.js` for users to manage their LLM API keys.
+        *   UI elements in `PlaygroundView.js` for selecting different AI models.
+        *   UI components to support freemium monetization (displaying usage, upgrade options).
+
+This separation allows for modular development, independent scaling of the backend and frontend services, and clear delineation of concerns.

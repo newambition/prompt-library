@@ -10,6 +10,9 @@ from src.config import settings
 from src.llm_services import generate_text_from_gemini
 from src.auth_utils import verify_token # Import the new dependency
 
+# Import the new router
+from src.routers import user_settings_router
+
 app = FastAPI(
     title="Prompt Library API",
     description="API for managing prompts, versions, notes, tags, and testing with LLMs.",
@@ -27,6 +30,9 @@ app.add_middleware(
 @app.get("/", tags=["Root"])
 async def read_root():
     return {"message": "Welcome to the Prompt Library API!"}
+
+# Include the user settings router
+app.include_router(user_settings_router)
 
 # -- Prompt Endpoints --
 @app.get("/prompts", response_model=schemas.PromptListResponse, tags=["Prompts"])

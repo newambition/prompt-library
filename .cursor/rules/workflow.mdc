@@ -1,0 +1,91 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Collaborative Development Workflow
+
+This document outlines the structured workflow for planning, developing, and implementing features or significant changes within the project. The process emphasizes clear planning, iterative development, and the use of a shared working memory document.
+
+## Core Principles:
+*   **Clarity**: Ensure all parties (user and AI) have a shared understanding of the goals and steps.
+*   **Iterative Progress**: Break down large tasks into manageable phases and steps.
+*   **Verifiability**: Incorporate testing and verification at logical checkpoints.
+*   **Shared Context**: Maintain a persistent plan as a "working memory".
+
+## Workflow Steps:
+
+1.  **Plan Formulation & Discussion**:
+    *   The USER will describe the desired feature, change, or problem to be solved.
+    *   The AI (Cursor) will discuss the requirements, ask clarifying questions, and propose an initial high-level plan.
+
+2.  **Plan Refinement & Agreement**:
+    *   The USER and AI will collaboratively refine the plan, breaking it down into logical phases and detailed steps.
+    *   Agreement on the plan structure and content is crucial before proceeding.
+
+3.  **Plan Documentation (Working Memory)**:
+    *   The agreed-upon plan will be documented in a Markdown (`.md`) file within the project (e.g., in a `docs/plans/` directory or a relevant location).
+    *   This `.md` file serves as the **primary working memory** for the AI for the duration of the task.
+
+4.  **Structured Implementation**:
+    *   The AI will follow the documented plan step-by-step.
+    *   For each step or sub-phase, the AI will:
+        *   Clearly state which part of the plan it is currently working on.
+        *   Implement the required changes (following the Discuss, Implement, Test, Debug cycle as appropriate for each task).
+        *   Perform or request tests as defined in the plan or as appropriate.
+        *   Provide consice yet robust testing instructions 
+        *   Debug any issues that arise, in collaboration with the USER if necessary.
+    *   The AI will refer back to the `.md` plan to ensure all steps are covered and to maintain context.
+
+5.  **Completion and Verification**:
+    *   Once all steps in the plan are implemented and verified, the task is considered complete.
+
+## Structure of the Working Memory (`.md`) File:
+
+The `.md` plan file should be structured hierarchically to ensure clarity and manageability:
+
+*   **Overall Goal**: A brief statement of the overall objective.
+*   **Phases**:
+    *   The plan should be broken down into major logical phases.
+    *   Each phase should represent a significant part of the feature or a distinct stage of development (e.g., "Phase 1: Setup User Authentication", "Phase 2: Implement Profile Page").
+    *   **Sub-Phases (Optional but Recommended for Complexity)**:
+        *   If a phase is large or complex, it can be further divided into sub-phases (e.g., "Phase 2.1: Design Profile UI", "Phase 2.2: Implement Profile Data Fetching", "Phase 2.3: Implement Profile Edit Functionality").
+        *   Sub-phases should ideally represent logical checkpoints where it's sensible to test and ensure the codebase is in a working state before moving to the next sub-phase or phase.
+    *   **Steps within Phases/Sub-Phases**:
+        *   Each phase or sub-phase must contain a clear, itemized list of actionable steps required to complete it.
+        *   Steps should be specific enough for the AI to understand and implement.
+
+**Example Snippet from a Plan `.md` File:**
+
+'''markdown
+# Feature: User Profile Management
+
+## Overall Goal:
+Allow users to view and edit their profile information.
+
+---
+
+## Phase 1: Backend API Endpoints
+
+### Phase 1.1: View Profile Endpoint
+- [ ] Define API route (`GET /api/users/profile`)
+- [ ] Implement controller logic to fetch user data
+- [ ] Add necessary authentication and authorization
+- [ ] Write unit tests for the endpoint
+
+### Phase 1.2: Edit Profile Endpoint
+- [ ] Define API route (`PUT /api/users/profile`)
+- [ ] Implement controller logic to update user data
+- [ ] Add input validation
+- [ ] Add necessary authentication and authorization
+- [ ] Write unit tests for the endpoint
+
+---
+
+## Phase 2: Frontend UI Implementation
+...
+'''
+
+By following this workflow and maintaining a detailed working memory document, complex tasks can be managed effectively, ensuring both the USER and AI are aligned throughout the development process. The AI will use this `.md` file as its primary guide until all steps are successfully implemented and verified.
+
+

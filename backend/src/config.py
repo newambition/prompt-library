@@ -11,6 +11,7 @@ load_dotenv(dotenv_path=env_path)
 
 class Settings:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    FERNET_KEY: str = os.getenv("FERNET_KEY", "") # Key for encrypting/decrypting user API keys
     
     # Auth0 settings
     AUTH0_DOMAIN: str = os.getenv("AUTH0_DOMAIN", "")
@@ -21,6 +22,9 @@ class Settings:
         print("Warning: AUTH0_DOMAIN is not set in .env file.")
     if not AUTH0_API_AUDIENCE:
         print("Warning: AUTH0_API_AUDIENCE is not set in .env file.")
+    
+    if not FERNET_KEY:
+        print("CRITICAL WARNING: FERNET_KEY is not set in .env file. API key encryption will fail.")
 
 
 settings = Settings()

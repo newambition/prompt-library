@@ -3,7 +3,7 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
-from src import models  # We will inherit from this class to create each of the ORM models (in models.py).
+# from src import models  # We will inherit from this class to create each of the ORM models (in models.py).
 
 # --- Database URL Configuration ---
 # Use SQLite for local development (creates a file named prompt_library.db)
@@ -51,7 +51,7 @@ def create_database_tables():
     print("Attempting to create database tables...")
     try:
         # Import models here to ensure Base has metadata
-        from src import models # noqa: F401 (ignore unused import warning)
+        # from src import models # noqa: F401 (ignore unused import warning)
         Base.metadata.create_all(bind=engine)
         print("Database tables created successfully (if they didn't exist).")
     except Exception as e:

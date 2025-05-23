@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
+import NewPromptModal from './components/NewPromptModal';
 import { useAuth0 } from '@auth0/auth0-react';
 import {
   fetchPrompts as apiFetchPrompts,
@@ -38,6 +39,7 @@ function App() {
   const [dataLoading, setDataLoading] = useState(false); // Initially false, true only during actual fetch
   const [error, setError] = useState(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showNewPromptModal, setShowNewPromptModal] = useState(false);
 
   const getAuthToken = useCallback(async () => {
     if (!isAuthenticated) return null; // Don't attempt if not authenticated
@@ -214,24 +216,69 @@ function App() {
   }, [isAuthenticated, getAuthToken, loadPrompts, promptsData]);
 
   const handleAddNewPrompt = useCallback(async () => {
-    if (!isAuthenticated) { alert("Please log in to create and save new prompts."); return; }
-    const newPromptTitle = prompt('Enter title for the new prompt:', 'New Prompt');
-    if (!newPromptTitle || !newPromptTitle.trim()) return;
+    if (!isAuthenticated) {
+      // For unauthenticated users, we could still open the modal and handle it client-side
+      // Or show a login prompt first. For now, let's allow opening for client-side mock handling.
+      // alert(LOGIN_REQUIRED_FOR_SAVE_MESSAGE); // Consider if this alert is still needed here or in modal submit
+      // return;
+    }
+    setShowNewPromptModal(true);
+  }, [isAuthenticated]);
+
+  const handleSubmitNewPrompt = useCallback(async (formData) => {
+    // formData will be an object like { title, initial_version_text, initial_version_notes, tags }
+    if (!isAuthenticated) {
+      // Handle client-side creation for unauthenticated users (same as old logic but with more fields)
+      const tempId = `temp-${Date.now()}`;
+      const newPrompt = {
+        id: tempId,
+        title: formData.title,
+        tags: formData.tags, // Assuming tags are {name: string, color: string} objects
+        versions: {
+          v1: {
+            text: formData.initial_version_text,
+            notes: formData.initial_version_notes || 'First version created.',
+            date: new Date().toISOString().split('T')[0],
+          }
+        },
+        latest_version: 'v1'
+      };
+      setPromptsData(prev => ({ ...prev, [tempId]: newPrompt }));
+      setSelectedPromptId(tempId);
+      setSelectedVersionId('v1');
+      setCurrentView('details');
+      setShowNewPromptModal(false);
+      return;
+    }
+
+    // Authenticated: save to backend
     try {
       const token = await getAuthToken();
-      if (!token) return;
+      if (!token) return; // Should ideally not happen if isAuthenticated
+
+      // The backend expects tags as an array of strings or objects {name: string, color: string}
+      // The current api.js createPrompt sends `tags: []` in `promptAPIData`.
+      // We need to ensure the backend can handle the new tag structure if `formData.tags` is populated.
+      // For now, let's assume backend expects `tags` as part of the main prompt body if it can handle it,
+      // or it might need a separate step/different structure.
+      // The existing `apiCreatePrompt` was: `promptAPIData = { title, tags: [], initial_version_text, initial_version_notes }`
+      // Let's adapt to send the full formData structure.
       const promptAPIData = {
-        title: newPromptTitle.trim(), tags: [],
-        initial_version_text: `Initial prompt text for "${newPromptTitle.trim()}".`,
-        initial_version_notes: 'First version created.'
+        title: formData.title,
+        initial_version_text: formData.initial_version_text,
+        initial_version_notes: formData.initial_version_notes,
+        tags: formData.tags, // Pass the tags from the modal
       };
+
       const newPrompt = await apiCreatePrompt(promptAPIData, token);
       setPromptsData(prev => ({ ...prev, [newPrompt.id]: newPrompt }));
       setSelectedPromptId(newPrompt.id);
-      setSelectedVersionId(newPrompt.latest_version);
+      setSelectedVersionId(newPrompt.latest_version); // This should be set by the backend
       setCurrentView('details');
+      setShowNewPromptModal(false);
     } catch (err) {
       alert(`Failed to create new prompt: ${err.message}`);
+      // Potentially leave modal open or provide other feedback
     }
   }, [isAuthenticated, getAuthToken]);
 
@@ -346,6 +393,12 @@ function App() {
           isAuthenticated={isAuthenticated} // Pass this down
         />
       )}
+      <NewPromptModal
+        isOpen={showNewPromptModal}
+        onClose={() => setShowNewPromptModal(false)}
+        onSubmit={handleSubmitNewPrompt}
+        availableTags={availableTags}
+      />
     </div>
   );
 }

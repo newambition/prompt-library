@@ -20,6 +20,8 @@ import { FaPencilAlt } from 'react-icons/fa';
  * @param {Function} props.onDeletePrompt - Callback function to delete a prompt.
  * @param {Function} props.onRenamePrompt - Callback function to rename a prompt.
  * @param {Array} props.availableTags - Array of unique tag objects for the tag input datalist.
+ * @param {boolean} props.isAuthenticated - Indicates whether the user is authenticated.
+ * @param {Function} props.onLogin - Callback function to handle login.
  */
 function MainContent({
   currentView,
@@ -34,7 +36,9 @@ function MainContent({
   onSaveAsNewVersion,
   onDeletePrompt,
   onRenamePrompt,
-  availableTags // Receive availableTags
+  availableTags, // Receive availableTags
+  isAuthenticated,
+  onLogin
 }) {
   const buttonsDisabled = !selectedPrompt || !selectedVersionId;
 
@@ -139,6 +143,8 @@ function MainContent({
             selectedVersionId={selectedVersionId}
             onRunTest={onRunTest}
             onSaveAsNewVersion={onSaveAsNewVersion}
+            isAuthenticated={isAuthenticated}
+            onLogin={onLogin}
           />
         )}
       </div>
