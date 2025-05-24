@@ -49,24 +49,32 @@ Address immediate UX improvements, enhance security regarding API key management
     - d. [X] `DELETE /user/api-keys/{llm_provider_or_key_id}`: Calls `delete_user_api_key`.
     - e. [X] Ensure all these endpoints are authenticated using `verify_token` and use the `user_id` (`sub`) from the token.
 
-- 5. [ ] **Frontend `SettingsModal.js` Enhancements:**
-    - a. [ ] UI to list currently configured API keys (provider, masked key, edit/delete buttons).
-    - b. [ ] UI to add a new API key: select LLM provider (dropdown), input API key.
-    - c. [ ] UI to edit an existing API key (likely means re-entering it).
-    - d. [ ] UI to delete an API key.
-    - e. [ ] Call the new backend API endpoints for these operations.
-    - f. [ ] Ensure API keys are only held in component state temporarily during submission and not stored in `localStorage` or `sessionStorage`.
+- 5. [X] **Frontend `SettingsModal.js` Enhancements:**
+    - a. [X] UI to list currently configured API keys (provider, masked key, edit/delete buttons).
+    - b. [X] UI to add a new API key: select LLM provider (dropdown), input API key.
+    - c. [X] UI to edit an existing API key (likely means re-entering it).
+    - d. [X] UI to delete an API key.
+    - e. [X] Call the new backend API endpoints for these operations.
+    - f. [X] Ensure API keys are only held in component state temporarily during submission and not stored in `localStorage` or `sessionStorage`.
 
-- 6. [ ] **Backend Playground Integration (`main.py` - `/playground/test`):**
-    - a. [ ] Modify `/playground/test` to accept an `llm_provider` field in the request.
-    - b. [ ] Instead of using `settings.GEMINI_API_KEY` directly, fetch the user\'s decrypted API key for the specified `llm_provider` using `get_decrypted_api_key(user_id_from_token, llm_provider)`.
-    - c. [ ] If no key found for the user/provider, return an appropriate error.
-    - d. [ ] Pass the fetched, decrypted key to the relevant LLM service (e.g., `generate_text_from_gemini`, or new ones for other providers).
+- 6. [X] **Backend Playground Integration (`main.py` - `/playground/test`):**
+    - a. [X] Modify `/playground/test` to accept an `llm_provider` field in the request.
+    - b. [X] Instead of using `settings.GEMINI_API_KEY` directly, fetch the user's decrypted API key for the specified `llm_provider` using `get_decrypted_api_key(user_id_from_token, llm_provider)`.
+    - c. [X] If no key found for the user/provider, return an appropriate error.
+    - d. [X] Pass the fetched, decrypted key to the relevant LLM service (e.g., `generate_text_from_gemini`, or new ones for other providers).
+    - **DONE**: A new `FERNET_KEY` has been generated. User has:
+        - Updated `backend/.env` with the new key: `FboeqiKA__DEPTYjzrnwc56pVTc2zugIL2IKVNDaoD8=`
+        - Cleared/truncated the `user_api_keys` table (by deleting and recreating `prompt_library.db` via Alembic).
+        - Restarted the backend server.
+        - Re-added API keys via the application's settings modal.
+    - **DONE**: Fixed `AttributeError: 'Settings' object has no attribute 'ENVIRONMENT'` in `backend/src/config.py`.
+    - **DONE**: Fixed frontend TypeError `undefined is not an object (evaluating 'userApiKeys.length')` in `SettingsModal.js`.
+    - **PENDING USER TEST**: User to confirm core functionality:
+        - [X] Test with a valid user-added API key.
+        - [X] Test selecting a provider with no user-added API key (expect user-friendly error).
+          (Note: UI prevents direct test of this path; backend logic confirmed to handle it.)
 
-- 7. [ ] **Developer API Key Override (Backend - Development Mode Only):**
-    - a. [ ] **Verify/Refine:** Current implementation in `/playground/test` uses `settings.GEMINI_API_KEY`.
-    - b. [ ] Ensure this developer override is clearly documented and strictly limited to non-production environments. Perhaps by checking an `ENVIRONMENT` variable.
-    - c. [ ] When dev override is active, it should bypass the user-specific key fetching for the playground for easier backend testing.
+- 7. [X] **Developer API Key Override (Backend - Development Mode Only):** (Functionality removed for simplicity. Playground will always use user-specific keys.)
 
 ### Sub-Phase 1.3: Environment Configuration
 - 1. [X] **Frontend:**
@@ -75,8 +83,8 @@ Address immediate UX improvements, enhance security regarding API key management
     - a. [X] Create a `.env.example` (or equivalent configuration template) in the `backend/` directory documenting all necessary environment variables (database connection strings, Auth0 domain/audience for token validation, managed LLM API keys if applicable here, etc.).
 
 ### Sub-Phase 1.4: Error Handling and User Feedback
-- 1. [ ] Review and standardize error handling messages across the frontend.
-- 2. [ ] Implement consistent loading indicators for all asynchronous operations in the frontend.
+- 1. [X] Review and standardize error handling messages across the frontend.
+- 2. [X] Implement consistent loading indicators for all asynchronous operations in the frontend. (Playground Save, DetailsView busy state, SettingsModal busy states implemented)
 
 ---
 
@@ -85,17 +93,33 @@ Address immediate UX improvements, enhance security regarding API key management
 ### Overall Goal for Phase 2:
 Integrate support for multiple AI models in the backend and provide a user interface in the playground for model selection.
 
-### Sub-Phase 2.1: Backend Multi-Model Support
-- 1. [ ] Design and implement an abstraction layer or common interface in the backend for interacting with different LLM APIs.
-- 2. [ ] Add backend logic to handle requests for at least two different LLM providers (e.g., OpenAI, Anthropic, Cohere, in addition to Gemini).
-    - a. [ ] Include configuration for API endpoints and key management for these new models.
-- 3. [ ] Modify the `/playground/test` API endpoint to accept a `model_id` (or similar identifier) to specify which LLM to use.
-- 4. [ ] Store the `model_id` used for a test when a prompt version is saved from the playground.
+### Suxb-Phase 2.1: Backend Multi-Model Support
+- 1. [X] Design and implement an abstraction layer or common interface in the backend for interacting with different LLM APIs.
+    - **Plan:**
+        - Create `BaseLLMProvider` abstract base class with `async def generate_text(self, api_key: str, model_id: str, prompt_text: str)`.
+        - Implement `GeminiProvider(BaseLLMProvider)`.
+        - Implement `OpenAIProvider(BaseLLMProvider)`.
+        - Implement `AnthropicProvider(BaseLLMProvider)`.
+        - Create a factory/registry function `get_llm_response(provider_name: str, api_key: str, model_id: str, prompt_text: str)` to dispatch to the correct provider.
+- 2. [X] Add backend logic to handle requests for at least two different LLM providers (e.g., OpenAI, Anthropic, Cohere, in addition to Gemini).
+    - a. [X] Include configuration for API endpoints and key management for these new models (Implemented `OpenAIProvider` and `AnthropicProvider` in `llm_services.py`).
+- 3. [X] Modify the `/playground/test` API endpoint to accept a `model_id` (or similar identifier) to specify which LLM to use.
+- 4. [X] Store the `model_id` and `llm_provider` used for a test when a prompt version is saved from the playground.
+    - **Note**: This involved significant refactoring of `models.py` (introducing `PromptVersionDB` as the primary version model, adding `version_id_str`), schema definitions, CRUD operations for versions, and a full reset and regeneration of Alembic migrations to ensure a clean and correct database schema.
+    - a. [X] **Backend Model:** Add `llm_provider` (String) and `model_id_used` (String, nullable) columns to `PromptVersionDB` in `backend/src/models.py`. (Also added `version_id_str`).
+    - b. [X] **Database Migration:** Generate and apply an Alembic migration for the new columns. (Re-initialized all migrations).
+    - c. [X] **Backend Schemas:** Add `llm_provider` and `model_id_used` (optional) to `VersionCreate` and `VersionResponse` Pydantic schemas in `backend/src/schemas.py`.
+    - d. [X] **Backend CRUD:** Update `crud.create_prompt_version` (now `create_db_version`), `create_db_prompt`, `_map_prompt_db_to_schema`, and `update_db_version_notes` in `backend/src/crud/crud_prompts.py` to accept and save/map these new fields and use `PromptVersionDB`.
+    - e. [X] **Backend API:** Modify `POST /prompts/{prompt_id}/versions` endpoint in `routers/prompts.py` (actually `main.py`) to accept and pass these fields from the request body and correctly map the response.
+    - f. [X] **Frontend API Service:** Update `apiCreateVersion` in `frontend/src/api.js` to include `llm_provider` and `model_id_used` in the payload. (No change needed in `api.js` itself, change was in the calling components).
+    - g. [X] **Frontend State Flow:** 
+        - [X] Modify `PlaygroundView.js` `handleSave` to pass `selectedLlmProvider` and `selectedModelId` to `onSaveAsNewVersion`.
+        - [X] Update `App.js` `handleSaveAsNewVersion` to accept these parameters and pass them to `apiCreateVersion`.
 
 ### Sub-Phase 2.2: Frontend Playground UI for Model Selection
-- 1. [ ] Add a dropdown or selection component to `PlaygroundView.js` to allow users to choose which AI model to use for testing.
-- 2. [ ] Update `handleRunTest` in `PlaygroundView.js` to pass the selected `model_id` to `apiRunPlaygroundTest`.
-- 3. [ ] Display the model used for a particular version if that information is available (e.g., in `DetailsView.js`).
+- 1. [X] Add a dropdown or selection component to `PlaygroundView.js` to allow users to choose which AI model to use for testing.
+- 2. [X] Update `handleRunTest` in `PlaygroundView.js` (and `App.js`, `api.js`) to pass the selected `model_id` to `apiRunPlaygroundTest`.
+- 3. [X] Display the model used for a particular version if that information is available (e.g., in `DetailsView.js`).
 
 ---
 

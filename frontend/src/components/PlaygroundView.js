@@ -1,32 +1,127 @@
 // frontend/src/components/PlaygroundView.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 const LOGIN_REQUIRED_FOR_TEST_MESSAGE = "LOGIN_REQUIRED_FOR_TEST"; // Ensure this matches App.js
 
-function PlaygroundView({ prompt, selectedVersionId, onRunTest, onSaveAsNewVersion, isAuthenticated, onLogin }) { // Added isAuthenticated and onLogin
+// Define LLM_PROVIDERS for mapping (can be imported if centralized)
+const LLM_PROVIDERS_MAP = {
+  'gemini': 'Gemini',
+  'openai': 'OpenAI',
+  'anthropic': 'Anthropic',
+  // Add other providers here if you have more display names
+};
+
+// Define available models for each provider
+const AVAILABLE_MODELS_BY_PROVIDER = {
+  gemini: [
+    { value: 'gemini-1.5-flash-latest', label: 'Gemini 1.5 Flash (Latest)' },
+    { value: 'gemini-1.5-pro-latest', label: 'Gemini 1.5 Pro (Latest)' },
+    // { value: 'gemini-pro', label: 'Gemini Pro (Legacy)' }, // Corrected: Use specific, current API model IDs
+    // Example of a more specific version if needed:
+    // { value: 'models/gemini-1.5-pro-001', label: 'Gemini 1.5 Pro 001'}
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' }
+  ],
+  openai: [
+    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+    { value: 'gpt-4', label: 'GPT-4' },
+    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+    // Add other OpenAI models. Check OpenAI docs for exact model IDs.
+  ],
+  anthropic: [
+    { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
+    { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet' },
+    { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
+    // Add other Anthropic models. Check Anthropic docs for exact model IDs.
+  ],
+  // Add other providers and their models here
+};
+
+function PlaygroundView({ 
+  prompt, 
+  selectedVersionId, 
+  onRunTest, 
+  onSaveAsNewVersion, 
+  isAuthenticated, 
+  onLogin,
+  userApiKeys,      // <-- Added prop from MainContent
+  apiKeysLoading    // <-- Added prop from MainContent
+}) { 
   const [editedPromptText, setEditedPromptText] = useState('');
   const [aiOutput, setAiOutput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedLlmProvider, setSelectedLlmProvider] = useState(''); // State for selected provider
+  const [selectedModelId, setSelectedModelId] = useState(''); // State for selected model ID
+  const [isSavingNewVersion, setIsSavingNewVersion] = useState(false); // Added for save loading state
 
   const selectedVersion = prompt?.versions?.[selectedVersionId];
+
+  const availableProviders = useMemo(() => {
+    if (!userApiKeys) return [];
+    return userApiKeys.map(key => ({
+        value: key.llm_provider,
+        label: LLM_PROVIDERS_MAP[key.llm_provider.toLowerCase()] || key.llm_provider.toUpperCase()
+    }));
+  }, [userApiKeys]);
 
   useEffect(() => {
     setEditedPromptText(selectedVersion?.text || '');
     setAiOutput('');
     setIsLoading(false);
-  }, [selectedVersion]);
+    // Set initial selected provider based on available keys
+    if (userApiKeys && userApiKeys.length > 0) {
+      const firstProvider = userApiKeys[0].llm_provider;
+      setSelectedLlmProvider(firstProvider);
+      // Also set the initial model for this provider
+      const modelsForProvider = AVAILABLE_MODELS_BY_PROVIDER[firstProvider.toLowerCase()];
+      if (modelsForProvider && modelsForProvider.length > 0) {
+        setSelectedModelId(modelsForProvider[0].value);
+      } else {
+        setSelectedModelId('');
+      }
+    } else {
+      setSelectedLlmProvider('');
+      setSelectedModelId('');
+    }
+  }, [selectedVersion, userApiKeys]); // Add userApiKeys to dependency array
+
+  const handleProviderChange = (newProviderValue) => {
+    setSelectedLlmProvider(newProviderValue);
+    const modelsForNewProvider = AVAILABLE_MODELS_BY_PROVIDER[newProviderValue.toLowerCase()];
+    if (modelsForNewProvider && modelsForNewProvider.length > 0) {
+      setSelectedModelId(modelsForNewProvider[0].value); // Default to first model of new provider
+    } else {
+      setSelectedModelId(''); // No models for this provider (or provider not in map)
+    }
+  };
 
   const handleRunTest = async () => {
     if (!editedPromptText.trim()) {
         setAiOutput("Please enter some prompt text to test.");
         return;
     }
+    if (!isAuthenticated) { // Check auth first
+      setAiOutput(
+        <>
+          Please <button onClick={onLogin} className="text-blue-500 hover:underline">Login or Create an Account</button> to enter your API Key and run tests.
+        </>
+      );
+      return;
+    }
+    if (!selectedLlmProvider) {
+      setAiOutput("Please select an LLM provider to use for the test.");
+      return;
+    }
+    if (!selectedModelId) { // Check if a model is selected
+      setAiOutput("Please select a specific model to use for the test.");
+      return;
+    }
+
     setIsLoading(true);
     setAiOutput('Running test...');
     try {
-      const result = await onRunTest(editedPromptText); // onRunTest comes from App.js
+      // Pass the selectedLlmProvider and selectedModelId to onRunTest
+      const result = await onRunTest(editedPromptText, selectedLlmProvider, selectedModelId); 
       if (result === LOGIN_REQUIRED_FOR_TEST_MESSAGE) {
-        // Display the custom message and potentially a login button
         setAiOutput(
           <>
             Please <button onClick={onLogin} className="text-blue-500 hover:underline">Login or Create an Account</button> to enter your API Key and run tests.
@@ -37,20 +132,34 @@ function PlaygroundView({ prompt, selectedVersionId, onRunTest, onSaveAsNewVersi
       }
     } catch (error) {
       console.error("Error running test:", error);
-      setAiOutput(`Error: ${error.message || 'Failed to run test.'}`);
+      setAiOutput(`An error occurred while running the test: ${error.message || 'Please try again or check your API key.'}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => { // Made async
     if (!isAuthenticated) {
-        alert("Please log in to save changes."); // Use the constant from App.js or pass it as prop
-        if (onLogin) onLogin(); // Optionally trigger login
+        alert("Please log in to save changes."); 
+        if (onLogin) onLogin(); 
         return;
     }
     if (prompt && editedPromptText && editedPromptText !== selectedVersion?.text) {
-      onSaveAsNewVersion(prompt.id, editedPromptText);
+      setIsSavingNewVersion(true); // Set loading true
+      try {
+        // Pass selectedLlmProvider and selectedModelId to onSaveAsNewVersion
+        await onSaveAsNewVersion(prompt.id, editedPromptText, selectedLlmProvider, selectedModelId);
+        // Optionally, reset editedPromptText to the newly saved version's text if desired,
+        // or rely on App.js to reload and re-render.
+        // For now, we assume App.js handles the refresh.
+      } catch (error) {
+        // Error is usually handled by an alert in onSaveAsNewVersion in App.js
+        // If not, or if specific modal feedback is needed here:
+        // console.error("Error saving new version from PlaygroundView:", error);
+        // alert(`Failed to save new version: ${error.message}`);
+      } finally {
+        setIsSavingNewVersion(false); // Set loading false
+      }
     } else {
         alert("Prompt text has not been changed or is empty.");
     }
@@ -66,10 +175,60 @@ function PlaygroundView({ prompt, selectedVersionId, onRunTest, onSaveAsNewVersi
 
   return (
     <div className="h-full flex flex-col space-y-4">
-      <h3 className="text-lg font-medium text-light">
-        Testing: <span className="font-semibold text-secondary">{prompt.title}</span> -{' '}
-        <span className="font-semibold text-light-secondary">{selectedVersionId}</span>
-      </h3>
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium text-light">
+          Testing: <span className="font-semibold text-secondary">{prompt.title}</span> - {' '}
+          <span className="font-semibold text-light-secondary">{selectedVersionId}</span>
+        </h3>
+        {/* LLM Provider and Model Dropdowns */} 
+        {isAuthenticated && (
+          <div className="flex items-center gap-4">
+            {/* Provider Dropdown */}
+            <div className="flex items-center">
+              <label htmlFor="llm-provider-select" className="text-sm font-medium text-light-secondary mr-2">
+                Provider:
+              </label>
+              {apiKeysLoading ? (
+                <span className="text-sm text-light-secondary italic">Loading keys...</span>
+              ) : availableProviders.length > 0 ? (
+                <select 
+                  id="llm-provider-select"
+                  value={selectedLlmProvider}
+                  onChange={(e) => handleProviderChange(e.target.value)} // Use new handler
+                  className="bg-dark text-light border border-light rounded-md p-1.5 text-sm focus:ring-secondary focus:border-secondary min-w-[120px]"
+                  disabled={isLoading}
+                >
+                  {availableProviders.map(provider => (
+                    <option key={provider.value} value={provider.value}>{provider.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-sm text-light-secondary italic">No API keys configured.</span>
+              )}
+            </div>
+
+            {/* Model Dropdown - Shown if a provider is selected and has models */}
+            {selectedLlmProvider && AVAILABLE_MODELS_BY_PROVIDER[selectedLlmProvider.toLowerCase()] && (
+              <div className="flex items-center">
+                <label htmlFor="llm-model-select" className="text-sm font-medium text-light-secondary mr-2">
+                  Model:
+                </label>
+                <select
+                  id="llm-model-select"
+                  value={selectedModelId}
+                  onChange={(e) => setSelectedModelId(e.target.value)}
+                  className="bg-dark text-light border border-light rounded-md p-1.5 text-sm focus:ring-secondary focus:border-secondary min-w-[180px]"
+                  disabled={isLoading || !selectedLlmProvider}
+                >
+                  {(AVAILABLE_MODELS_BY_PROVIDER[selectedLlmProvider.toLowerCase()] || []).map(model => (
+                    <option key={model.value} value={model.value}>{model.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-hidden">
         <div className="flex flex-col bg-surface glass p-6 rounded-xl border border-light overflow-hidden">
           <label htmlFor="editable-prompt" className="block text-sm font-medium text-light-secondary mb-2">
@@ -81,22 +240,22 @@ function PlaygroundView({ prompt, selectedVersionId, onRunTest, onSaveAsNewVersi
             value={editedPromptText}
             onChange={(e) => setEditedPromptText(e.target.value)}
             className="flex-1 w-full p-3 border border-light rounded-lg text-sm bg-dark text-light focus:ring-secondary focus:border-secondary resize-none mb-3"
-            placeholder="Enter or edit your prompt here..."
+            placeholder="Enter or edit your prompt text here..."
           />
           <div className="mt-auto flex justify-between items-center pt-3 border-light-top">
             <button
               onClick={handleRunTest}
-              disabled={isLoading || !editedPromptText.trim()}
+              disabled={isLoading || !editedPromptText.trim() || (isAuthenticated && (!selectedLlmProvider || !selectedModelId) && !apiKeysLoading)}
               className={`btn-secondary font-medium py-2 px-4 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-sm ${isLoading ? 'animate-pulse' : ''}`}
             >
               {isLoading ? 'Running...' : 'Run Test'}
             </button>
             <button
               onClick={handleSave}
-              disabled={isLoading || !editedPromptText.trim() || editedPromptText === selectedVersion.text}
+              disabled={isLoading || isSavingNewVersion || !editedPromptText.trim() || editedPromptText === selectedVersion.text}
               className="btn-accent font-medium py-2 px-4 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
-              Save as New Version
+              {isSavingNewVersion ? 'Saving...' : 'Save as New Version'}
             </button>
           </div>
         </div>

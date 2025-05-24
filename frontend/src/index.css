@@ -7,6 +7,7 @@
   --primary: #8E2DE2;         /* Vibrant Purple */
   --primary-dark: #4A00E0;    /* Deep Purple */
   --primary-gradient: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  --title-gradient: linear-gradient(135deg, rgb(141, 45, 226, 0.8) 0%, rgba(0, 245, 160, 0.8) 120%);
   
   /* Secondary & Accent Colors */
   --secondary: #00F5A0;       /* Mint Green */
@@ -98,6 +99,7 @@
 .text-danger { color: var(--danger); }
 .text-highlight { color: var(--highlight); }
 .text-gradient { color: var(--primary-gradient); }
+
 
 /* Border Utilities */
 .border-light { border: 1px solid var(--light-border); }
@@ -219,6 +221,16 @@
   position: relative;
   z-index: 0;
 }
+
+/* Complementary Gradient for Title Text */
+.text-title-gradient {
+  background: var(--title-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-fill-color: transparent;
+}
+
 /* Apply Inter font globally */
 body {
   font-family: 'Inter', sans-serif;
@@ -227,20 +239,32 @@ body {
   /* color: theme('colors.gray.800'); */
 }
 
+.font-title {
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-weight:800;
+}
+
 /* Custom scrollbar for prompt list (applied via className in Sidebar) */
 .prompt-list::-webkit-scrollbar {
+  display: none;
   width: 6px;
 }
 .prompt-list::-webkit-scrollbar-track {
+  display: none;
   background: theme('colors.gray.100'); /* Consider using Tailwind colors e.g., theme('colors.gray.100') */
   border-radius: 10px;
 }
 .prompt-list::-webkit-scrollbar-thumb {
+  display: none;
   background: theme('colors.slate.300'); /* slate-300 */
   border-radius: 10px;
 }
 .prompt-list::-webkit-scrollbar-thumb:hover {
+  display: none;
   background: theme('colors.slate.400'); /* slate-400 */
+}
+.new-prompt-modal::-webkit-scrollbar {
+  display: none;
 }
 
 /* Define custom component styles using @layer components if needed, */

@@ -27,36 +27,13 @@ class PromptDB(Base):
 
     # Relationship to versions (one-to-many)
     # 'cascade="all, delete-orphan"' means versions are deleted when the prompt is deleted
-    versions: Mapped[List["VersionDB"]] = relationship("VersionDB", back_populates="prompt", cascade="all, delete-orphan")
+    versions: Mapped[List["PromptVersionDB"]] = relationship("PromptVersionDB", back_populates="prompt", cascade="all, delete-orphan")
 
     # Add an index for searching by title
     __table_args__ = (
         Index('ix_prompt_title', 'title'),
         {"extend_existing": True}
     )
-
-class VersionDB(Base):
-    """SQLAlchemy model for the 'versions' table."""
-    __tablename__ = "versions"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    version_id: Mapped[str] = mapped_column(String, index=True, nullable=False) # e.g., "v1"
-    date: Mapped[str] = mapped_column(String, nullable=False) # Store as YYYY-MM-DD string
-    text: Mapped[str] = mapped_column(Text, nullable=False)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    # Foreign key relationship to the prompts table
-    prompt_db_id: Mapped[int] = mapped_column(Integer, ForeignKey("prompts.id"), nullable=False)
-
-    # Relationship back to the prompt (many-to-one)
-    prompt: Mapped["PromptDB"] = relationship("PromptDB", back_populates="versions")
-
-    # Add an index for the foreign key and version_id for faster lookups
-    __table_args__ = (Index('ix_version_prompt_id_version_id', 'prompt_db_id', 'version_id', unique=True),)
-
-# Note: We are storing versions directly related to a prompt.
-# The 'versions' dictionary and 'latest_version' string in the Pydantic 'Prompt' schema
-# will be constructed dynamically from these related VersionDB objects in the CRUD layer.
 
 class UserApiKeyDB(Base):
     __tablename__ = "user_api_keys"
@@ -72,3 +49,19 @@ class UserApiKeyDB(Base):
     __table_args__ = (
         Index('ix_user_api_key_user_id_llm_provider', 'user_id', 'llm_provider', unique=True),
     )
+
+class PromptVersionDB(Base):
+    __tablename__ = "prompt_versions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    prompt_id = Column(Integer, ForeignKey("prompts.id"))
+    version_number = Column(Integer, nullable=False)
+    version_id_str = Column(String, index=True, nullable=False)
+    text = Column(Text, nullable=False)
+    notes = Column(Text, nullable=True)
+    llm_provider = Column(String, nullable=True)
+    model_id_used = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    prompt = relationship("PromptDB", back_populates="versions")

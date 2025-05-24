@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from src import schemas, crud, models
 from src.database import get_db
 from src.config import settings
-from src.llm_services import generate_text_from_gemini
+from src.llm_services import get_llm_response # New import
 from src.auth_utils import verify_token # Import the new dependency
 
 # Import the new router
@@ -92,9 +92,16 @@ async def create_version_for_prompt(
     db_version = crud.create_db_version(db=db, prompt_id=prompt_id, version_data=version_data)
     if db_version is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Prompt '{prompt_id}' not found")
+    
+    # Manually map PromptVersionDB to schemas.Version, including new fields
     return schemas.Version(
-        id=db_version.id, version_id=db_version.version_id, text=db_version.text,
-        notes=db_version.notes, date=db_version.date
+        id=db_version.id,
+        version_id=db_version.version_id_str, # Use version_id_str
+        text=db_version.text,
+        notes=db_version.notes,
+        date=db_version.created_at.isoformat() if db_version.created_at else crud.get_current_date_str(), # Use created_at
+        llm_provider=db_version.llm_provider,
+        model_id_used=db_version.model_id_used
     )
 
 @app.put("/prompts/{prompt_id}/versions/{version_id_str}/notes", response_model=schemas.Version, tags=["Versions"])
@@ -139,19 +146,64 @@ async def remove_tag_from_prompt(
 @app.post("/playground/test", response_model=schemas.PlaygroundResponse, tags=["Playground"])
 async def test_prompt_in_playground(
     request: schemas.PlaygroundRequest,
+    db: Session = Depends(get_db), # Added db session dependency
     current_user: Dict = Depends(verify_token) # Protect endpoint
 ):
-    api_key_to_use = settings.GEMINI_API_KEY
-    if not api_key_to_use:
+    user_id = current_user.get('sub')
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials or user ID missing."
+        )
+
+    llm_provider_from_request = request.llm_provider.lower() # Normalize to lowercase
+
+    # If not using dev override, fetch user's key
+    decrypted_key = crud.get_decrypted_api_key(db=db, user_id=user_id, llm_provider=llm_provider_from_request)
+    if not decrypted_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"API key for provider '{llm_provider_from_request}' not found for your account. Please add it in settings."
+        )
+    api_key_to_use = decrypted_key
+
+    if not api_key_to_use: # Should be caught by above, but as a safeguard
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="LLM service is not configured on the server (API key missing)."
+            detail=f"API key for provider '{llm_provider_from_request}' could not be determined."
         )
-    generated_text, error_message = await generate_text_from_gemini(
+
+    # Call the new get_llm_response function
+    generated_text, error_message = await get_llm_response(
+        provider_name=llm_provider_from_request,
         api_key=api_key_to_use,
+        model_id=request.model_id, # Pass the new model_id from the request
         prompt_text=request.prompt_text
     )
+
     if error_message:
-        return schemas.PlaygroundResponse(output_text=None, error=error_message)
+        # Standardized error prefixes from llm_services can be checked here if needed
+        # For now, return the error message as is, or map to specific HTTP status codes
+        if error_message.startswith("API_KEY_NOT_CONFIGURED"):
+            # This case should be caught by the decrypted_key check earlier, but as a safeguard
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"API key for '{llm_provider_from_request}' not found or invalid.")
+        elif error_message.startswith("MODEL_NOT_FOUND"):
+            model_name_from_error = error_message.split(":",1)[1] if ":" in error_message else request.model_id
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Model '{model_name_from_error}' not found for provider '{llm_provider_from_request}'.")
+        elif error_message.startswith("PROMPT_BLOCKED"):
+            block_reason = error_message.split(":",1)[1] if ":" in error_message else "Unknown reason"
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Prompt blocked by provider '{llm_provider_from_request}'. Reason: {block_reason}")
+        elif error_message.startswith("UNSUPPORTED_PROVIDER"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Provider '{llm_provider_from_request}' is not supported.")
+        elif error_message.startswith("NOT_IMPLEMENTED"):
+            raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=f"Support for '{llm_provider_from_request}' (model: '{request.model_id}') is not yet implemented.")
+        
+        # For generic GEMINI_API_ERROR, OPENAI_API_ERROR, etc., or other unhandled errors
+        # Return a 503 or a more generic 500, possibly logging the detailed error_message server-side
+        # For now, returning the error message which might be too revealing.
+        # A better approach would be to log error_message and return a generic server error.
+        print(f"LLM service error for {llm_provider_from_request} / {request.model_id}: {error_message}")
+        return schemas.PlaygroundResponse(output_text=None, error=f"Error with LLM provider '{llm_provider_from_request}': {error_message}")
+    
     return schemas.PlaygroundResponse(output_text=generated_text, error=None)
 

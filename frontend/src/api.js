@@ -124,12 +124,14 @@ export async function updatePrompt(promptId, updateData, token) {
 }
 
 // Run a prompt in the playground
-export async function runPlaygroundTest(promptText, token) {
+export async function runPlaygroundTest(promptText, llmProvider, modelId, token) {
   // userApiKey from localStorage is not needed here as the backend uses its own key for Phase 1
   // If the backend were to use a user-provided key, it would be passed in the body or a specific header,
   // but the primary Authorization header should still be the Auth0 Access Token.
   const payload = {
     prompt_text: promptText,
+    llm_provider: llmProvider,
+    model_id: modelId,
   };
   const res = await fetch(`${API_BASE}/playground/test`, {
     method: 'POST',
@@ -141,4 +143,67 @@ export async function runPlaygroundTest(promptText, token) {
     throw new Error(errorData.detail || `Playground test failed: ${res.statusText}`);
   }
   return res.json();
+}
+
+// Fetch user's configured API keys
+export async function getUserApiKeys(token) {
+  const res = await fetch(`${API_BASE}/user/api-keys`, {
+    method: 'GET',
+    headers: createHeaders(token),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(`Failed to fetch user API keys: ${errorData.detail || res.statusText}`);
+  }
+  return res.json();
+}
+
+// Add a new API key for the user
+export async function addUserApiKey(token, llm_provider, api_key_plain) {
+  const payload = { llm_provider, api_key_plain };
+  const res = await fetch(`${API_BASE}/user/api-keys`, {
+    method: 'POST',
+    headers: createHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(`Failed to add API key: ${errorData.detail || res.statusText}`);
+  }
+  return res.json(); // Assuming the backend returns the newly created key (or some confirmation)
+}
+
+// Update an existing API key for the user
+export async function updateUserApiKey(token, llm_provider, new_api_key_plain) {
+  const payload = { new_api_key_plain }; // Backend expects new_api_key_plain in the body
+  const res = await fetch(`${API_BASE}/user/api-keys/${encodeURIComponent(llm_provider)}`, {
+    method: 'PUT',
+    headers: createHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(`Failed to update API key for ${llm_provider}: ${errorData.detail || res.statusText}`);
+  }
+  return res.json(); // Assuming the backend returns the updated key (or some confirmation)
+}
+
+// Delete an API key for the user by its ID
+export async function deleteUserApiKey(token, apiKeyId) {
+  const res = await fetch(`${API_BASE}/user/api-keys/${encodeURIComponent(apiKeyId)}`, { // Endpoint expects key ID or provider name
+    method: 'DELETE',
+    headers: createHeaders(token),
+  });
+  if (!res.ok && res.status !== 204) { // 204 No Content is a success for DELETE
+    const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(`Failed to delete API key: ${errorData.detail || res.statusText}`);
+  }
+  // For DELETE, a 204 response means success, and there might not be a JSON body.
+  // If there is a body (e.g., a confirmation message), res.json() would work.
+  // If not, trying to parse JSON from an empty response will cause an error.
+  // So, we handle 204 specifically.
+  if (res.status === 204) {
+    return null; // Or a custom success object like { success: true, message: "API key deleted" }
+  }
+  return res.json(); // If backend sends a body on successful delete other than 204
 }

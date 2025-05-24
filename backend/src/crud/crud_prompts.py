@@ -26,14 +26,18 @@ def get_next_version_id_db(prompt: models.PromptDB) -> str:
     if not prompt.versions:
         return "v1"
     max_num = 0
-    for version_db in prompt.versions:
-        if version_db.version_id.startswith("v"):
+    for version_db in prompt.versions: # These are now PromptVersionDB instances
+        if hasattr(version_db, 'version_id_str') and version_db.version_id_str.startswith("v"):
             try:
-                num = int(version_db.version_id[len("v"):])
+                num = int(version_db.version_id_str[len("v"):])
                 if num > max_num:
                     max_num = num
             except ValueError:
                 continue
+        elif hasattr(version_db, 'version_number'): # Fallback or handling for just number if needed, though we aim for vN
+            if version_db.version_number > max_num:
+                 max_num = version_db.version_number
+
     return f"v{max_num + 1}"
 
 def get_current_date_str() -> str:
@@ -43,23 +47,25 @@ def get_current_date_str() -> str:
 def _map_prompt_db_to_schema(prompt_db: models.PromptDB) -> schemas.Prompt:
     """Helper to map SQLAlchemy PromptDB model to Pydantic Prompt schema."""
     versions_dict: Dict[str, schemas.Version] = {}
-    # Sort versions by date descending, then by version_id (numeric part) descending
+    # Sort versions by created_at descending, then by version_number descending
     sorted_db_versions = sorted(
         prompt_db.versions,
         key=lambda v: (
-            datetime.datetime.strptime(v.date, '%Y-%m-%d').date() if isinstance(v.date, str) else v.date,
-            -int(v.version_id[1:]) if v.version_id.startswith('v') and v.version_id[1:].isdigit() else 0
+            v.created_at if hasattr(v, 'created_at') else datetime.datetime.min, # Primary sort key
+            v.version_number if hasattr(v, 'version_number') else 0 # Secondary sort key
         ),
         reverse=True
     )
-    for version_db in sorted_db_versions:
-        # Map SQLAlchemy VersionDB to Pydantic Version schema
-        versions_dict[version_db.version_id] = schemas.Version(
+    for version_db in sorted_db_versions: # These are PromptVersionDB instances
+        # Map SQLAlchemy PromptVersionDB to Pydantic Version schema
+        versions_dict[version_db.version_id_str] = schemas.Version(
             id=version_db.id, # This is the integer PK
-            version_id=version_db.version_id, # This is the "vN" string
+            version_id=version_db.version_id_str, # This is the "vN" string
             text=version_db.text,
             notes=version_db.notes,
-            date=version_db.date
+            date=version_db.created_at.isoformat() if hasattr(version_db, 'created_at') and version_db.created_at else get_current_date_str(), # Use created_at, provide fallback
+            llm_provider=version_db.llm_provider if hasattr(version_db, 'llm_provider') else None,
+            model_id_used=version_db.model_id_used if hasattr(version_db, 'model_id_used') else None
         )
     
     # Map tags from list of dicts in DB to list of Pydantic Tag schemas
@@ -106,14 +112,17 @@ def create_db_prompt(db: Session, prompt_data: schemas.PromptCreate) -> models.P
         latest_version=initial_version_id_str
     )
     db.add(db_prompt)
-    db.flush()
+    db.flush() # Ensure db_prompt.id is populated before using it for the version
 
-    db_version = models.VersionDB(
-        version_id=initial_version_id_str,
-        date=get_current_date_str(),
+    db_version = models.PromptVersionDB(
+        prompt_id=db_prompt.id, # Correct: Foreign key to PromptDB's primary key (integer)
+        version_number=1,
+        version_id_str=initial_version_id_str, # This is "v1"
+        # date=get_current_date_str(), # created_at is now auto-set by DB
         text=prompt_data.initial_version_text,
         notes=prompt_data.initial_version_notes,
-        prompt_db_id=db_prompt.id
+        llm_provider=None, # Explicitly None for initial version
+        model_id_used=None   # Explicitly None for initial version
     )
     db.add(db_version)
 
@@ -152,18 +161,32 @@ def update_db_prompt(db: Session, prompt_id: str, update_data: schemas.PromptUpd
 
 # --- Version CRUD ---
 
-def create_db_version(db: Session, prompt_id: str, version_data: schemas.VersionCreate) -> Optional[models.VersionDB]:
+def create_db_version(db: Session, prompt_id: str, version_data: schemas.VersionCreate) -> Optional[models.PromptVersionDB]:
     db_prompt = get_prompt_by_prompt_id(db, prompt_id)
     if not db_prompt:
         return None
 
     new_version_id_str = get_next_version_id_db(db_prompt)
-    db_version = models.VersionDB(
-        version_id=new_version_id_str,
-        date=get_current_date_str(),
+    next_version_number = 0
+    try:
+        next_version_number = int(new_version_id_str[len("v"):])
+    except ValueError:
+        # This case should ideally not happen if get_next_version_id_db is robust
+        # Or handle by querying max version_number from db_prompt.versions + 1
+        if db_prompt.versions:
+            next_version_number = max(v.version_number for v in db_prompt.versions if hasattr(v, 'version_number')) + 1
+        else:
+            next_version_number = 1
+
+    db_version = models.PromptVersionDB(
+        prompt_id=db_prompt.id, # Foreign key to PromptDB's primary key
+        version_number=next_version_number,
+        version_id_str=new_version_id_str,
+        # date=get_current_date_str(), # created_at is now auto-set by DB
         text=version_data.text,
         notes=version_data.notes,
-        prompt_db_id=db_prompt.id
+        llm_provider=version_data.llm_provider,
+        model_id_used=version_data.model_id_used
     )
     db.add(db_version)
     db_prompt.latest_version = new_version_id_str
@@ -173,11 +196,12 @@ def create_db_version(db: Session, prompt_id: str, version_data: schemas.Version
     db.refresh(db_prompt)
     return db_version
 
-def update_db_version_notes(db: Session, prompt_id: str, version_id_str: str, notes: Optional[str]) -> Optional[models.VersionDB]:
+def update_db_version_notes(db: Session, prompt_id: str, version_id_str: str, notes: Optional[str]) -> Optional[models.PromptVersionDB]:
     db_prompt = get_prompt_by_prompt_id(db, prompt_id)
     if not db_prompt:
         return None
-    db_version_to_update = next((v for v in db_prompt.versions if v.version_id == version_id_str), None)
+    # Find the version by version_id_str
+    db_version_to_update = next((v for v in db_prompt.versions if hasattr(v, 'version_id_str') and v.version_id_str == version_id_str), None)
     if not db_version_to_update:
         return None
     db_version_to_update.notes = notes

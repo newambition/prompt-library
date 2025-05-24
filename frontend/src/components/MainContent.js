@@ -22,6 +22,9 @@ import { FaPencilAlt } from 'react-icons/fa';
  * @param {Array} props.availableTags - Array of unique tag objects for the tag input datalist.
  * @param {boolean} props.isAuthenticated - Indicates whether the user is authenticated.
  * @param {Function} props.onLogin - Callback function to handle login.
+ * @param {Array} props.userApiKeys - Array of user's API keys.
+ * @param {boolean} props.apiKeysLoading - Loading state for API keys.
+ * @param {boolean} props.isDetailsViewBusy - Indicates whether the DetailsView is busy.
  */
 function MainContent({
   currentView,
@@ -36,9 +39,12 @@ function MainContent({
   onSaveAsNewVersion,
   onDeletePrompt,
   onRenamePrompt,
-  availableTags, // Receive availableTags
+  availableTags,
   isAuthenticated,
-  onLogin
+  onLogin,
+  userApiKeys,
+  apiKeysLoading,
+  isDetailsViewBusy
 }) {
   const buttonsDisabled = !selectedPrompt || !selectedVersionId;
 
@@ -135,7 +141,8 @@ function MainContent({
             onRemoveTag={onRemoveTag}
             onDeletePrompt={onDeletePrompt}
             onRenamePrompt={onRenamePrompt}
-            availableTags={availableTags} // Pass availableTags to DetailsView
+            availableTags={availableTags}
+            isDetailsViewBusy={isDetailsViewBusy}
           />
         ) : (
           <PlaygroundView
@@ -145,6 +152,8 @@ function MainContent({
             onSaveAsNewVersion={onSaveAsNewVersion}
             isAuthenticated={isAuthenticated}
             onLogin={onLogin}
+            userApiKeys={userApiKeys}
+            apiKeysLoading={apiKeysLoading}
           />
         )}
       </div>

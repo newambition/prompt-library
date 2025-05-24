@@ -34,7 +34,8 @@ function DetailsView({
   onRemoveTag,
   onDeletePrompt,
   onRenamePrompt,
-  availableTags // Passed from App.js, [{name: "...", color: "..."}, ...]
+  availableTags, // Passed from App.js, [{name: "...", color: "..."}, ...]
+  isDetailsViewBusy
 }) {
   const [noteText, setNoteText] = useState('');
   const [newTagName, setNewTagName] = useState('');
@@ -88,20 +89,20 @@ function DetailsView({
     }
   };
 
-  const handleSaveNotes = () => {
+  const handleSaveNotesInternal = () => {
     if (prompt && selectedVersionId && selectedVersionObject) {
       onSaveNotes(prompt.id, selectedVersionId, noteText);
     }
   };
 
-  const handleAddTag = () => {
+  const handleAddTagInternal = () => {
     if (prompt && newTagName.trim() && newTagTheme) {
       onAddTag(prompt.id, { name: newTagName.trim(), color: newTagTheme });
       setNewTagName('');
     }
   };
 
-  const handleRemoveTag = (tagNameToRemove) => {
+  const handleRemoveTagInternal = (tagNameToRemove) => {
     if (prompt) {
       onRemoveTag(prompt.id, tagNameToRemove);
     }
@@ -109,7 +110,7 @@ function DetailsView({
 
   const handleTagInputKeyPress = (event) => {
     if (event.key === 'Enter') {
-      handleAddTag();
+      handleAddTagInternal();
     }
   };
 
@@ -186,15 +187,33 @@ function DetailsView({
           <pre className="bg-dark text-light p-4 rounded-lg text-sm whitespace-pre-wrap break-words overflow-x-auto border border-light">
             {selectedVersionObject.text}
           </pre>
+
+          {(selectedVersionObject.llm_provider || selectedVersionObject.model_id_used) && (
+            <div className="mt-4">
+              {selectedVersionObject.llm_provider && (
+                <p className="text-sm text-light-secondary">
+                  <span className="font-semibold text-light">LLM Provider:</span> {selectedVersionObject.llm_provider}
+                </p>
+              )}
+              {selectedVersionObject.model_id_used && (
+                <p className="text-sm text-light-secondary mt-1">
+                  <span className="font-semibold text-light">Model Used:</span> {selectedVersionObject.model_id_used}
+                </p>
+              )}
+            </div>
+          )}
+
           <h4 className="font-semibold mt-6 mb-2 text-light">Notes for this version:</h4>
           <textarea
             id={`version-notes-${selectedVersionId}`} rows="3" value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
             className="w-full p-3 border border-light rounded-lg text-sm bg-dark text-light focus:ring-secondary focus:border-secondary"
             placeholder="Add or edit notes for this version..."
+            disabled={isDetailsViewBusy}
           />
-          <button onClick={handleSaveNotes}
-            className="mt-3 btn-secondary text-dark font-semibold py-2 px-5 rounded-xl transition duration-150 ease-in-out shadow-md"
+          <button onClick={handleSaveNotesInternal}
+            disabled={isDetailsViewBusy}
+            className="mt-3 btn-secondary text-dark font-semibold py-2 px-5 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           > Save Notes
           </button>
         </div>
@@ -213,9 +232,10 @@ function DetailsView({
               >
                 {tag.name}
                 <button
-                  onClick={() => handleRemoveTag(tag.name)}
+                  onClick={() => handleRemoveTagInternal(tag.name)}
                   aria-label={`Remove tag ${tag.name}`}
                   className="ml-1.5 hover:text-light"
+                  disabled={isDetailsViewBusy}
                 > &times;
                 </button>
               </span>
@@ -232,6 +252,7 @@ function DetailsView({
               onKeyPress={handleTagInputKeyPress}
               placeholder="Type or select tag name"
               className="flex-grow p-2 border border-light rounded-md text-sm bg-dark text-light focus:ring-secondary focus:border-secondary"
+              disabled={isDetailsViewBusy}
             />
             <datalist id="available-tags-datalist">
               {availableTags.map(tag => (
@@ -257,13 +278,15 @@ function DetailsView({
                     className={`w-8 h-8 rounded-full border-2 transition ${theme.className} ${newTagTheme === theme.name ? 'ring-2 ring-secondary' : ''}`}
                     onClick={() => { setNewTagTheme(theme.name); setShowThemePicker(false); }}
                     title={theme.label}
+                    disabled={isDetailsViewBusy}
                   />
                 ))}
               </div>
             )}
             <button
-              onClick={handleAddTag}
-              className="btn-secondary text-dark font-semibold py-2 px-4 rounded-xl transition duration-150 ease-in-out shadow-md"
+              onClick={handleAddTagInternal}
+              disabled={isDetailsViewBusy || !newTagName.trim()}
+              className="btn-secondary text-dark font-semibold py-2 px-4 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             > Add Tag
             </button>
           </div>
@@ -274,7 +297,8 @@ function DetailsView({
       <div className="flex justify-start mt-4">
         <button
           onClick={() => setShowDeleteModal(true)}
-          className="bg-danger-gradient hover:shadow-danger text-light text-sm font-semibold py-2 px-6 rounded-xl transition duration-150 ease-in-out shadow-md"
+          disabled={isDetailsViewBusy}
+          className="bg-danger-gradient hover:shadow-danger text-light text-sm font-semibold py-2 px-6 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
         > Delete Prompt
         </button>
       </div>
@@ -284,11 +308,13 @@ function DetailsView({
             <p className="mb-4 text-lg text-light">Are you sure you want to delete this prompt?</p>
             <div className="flex gap-2 justify-center">
               <button onClick={() => setShowDeleteModal(false)}
-                className="bg-dark hover:bg-surface text-light font-medium py-1 px-4 rounded-xl border border-light"
+                disabled={isDetailsViewBusy}
+                className="bg-dark hover:bg-surface text-light font-medium py-1 px-4 rounded-xl border border-light disabled:opacity-50 disabled:cursor-not-allowed"
               > Cancel
               </button>
               <button onClick={() => { setShowDeleteModal(false); onDeletePrompt(prompt.id); }}
-                className="bg-danger-gradient hover:shadow-danger text-light font-medium py-1 px-4 rounded-xl"
+                disabled={isDetailsViewBusy}
+                className="bg-danger-gradient hover:shadow-danger text-light font-medium py-1 px-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
               > Delete Prompt
               </button>
             </div>
