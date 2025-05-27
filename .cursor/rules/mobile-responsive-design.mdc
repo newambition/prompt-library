@@ -1,0 +1,82 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Mobile-First Responsive Design Patterns
+
+## Overview
+This project follows a mobile-first responsive design approach, ensuring optimal user experience across all device sizes, particularly for mobile devices like iPhone X.
+
+## Core Principles
+
+### 1. Mobile-First Breakpoints
+- Default styles target mobile devices (< 640px)
+- Use `sm:` prefix for small screens and up (≥ 640px)
+- Use `md:` prefix for medium screens and up (≥ 768px)
+
+### 2. Responsive Sidebar Implementation
+The sidebar in [Sidebar.js](mdc:frontend/src/components/Sidebar.js) demonstrates the standard pattern:
+
+**Mobile (default):**
+- Hidden by default with hamburger menu trigger
+- Slides out as overlay drawer (`fixed`, `z-50`)
+- Uses `w-4/5` (80% width) to prevent overflow on small screens
+- Includes backdrop overlay for dismissal
+
+**Desktop (sm: and up):**
+- Always visible in sidebar layout
+- Uses standard fractional widths (`w-1/4`, `md:w-1/5`)
+
+### 3. Text Responsive Scaling
+Text should scale appropriately as shown in [InitialViewAnimation.js](mdc:frontend/src/components/InitialViewAnimation.js):
+- Mobile: `text-5xl` for large headers
+- Small screens: `sm:text-7xl`
+- Medium+: `md:text-8xl`
+
+### 4. Modal Responsive Design
+Modals like [NewPromptModal.js](mdc:frontend/src/components/NewPromptModal.js) should:
+
+**Mobile:**
+- Remove borders (`border-0 sm:border`)
+- Remove rounded corners (`rounded-none sm:rounded-xl`)
+- Use full screen width with proper padding
+- Stack form elements vertically to prevent horizontal overflow
+
+**Desktop:**
+- Maintain standard modal styling with borders and rounded corners
+- Use horizontal layouts for complex form elements
+
+## Mobile Overflow Prevention
+
+### Key Strategies:
+1. **Responsive Width Classes**: Use `w-4/5` instead of fixed pixel widths like `w-80`
+2. **Vertical Stacking**: Stack form elements on mobile using `flex-col` or separate mobile/desktop layouts
+3. **Proper Padding**: Add `px-4 sm:px-6` for consistent edge spacing
+4. **Content Container Spacing**: Use `pt-12 sm:pt-0` to account for mobile header space
+
+### Form Layout Pattern:
+```jsx
+{/* Mobile layout - stacked */}
+<div className="block sm:hidden">
+  {/* Mobile-specific stacked layout */}
+</div>
+
+{/* Desktop layout - horizontal */}
+<div className="hidden sm:flex">
+  {/* Desktop horizontal layout */}
+</div>
+```
+
+## Testing Requirements
+Always test responsive changes on:
+- iPhone X (375px width) - primary mobile target
+- Larger mobile devices
+- Tablet breakpoints
+- Desktop sizes
+
+## File References
+- Main responsive sidebar: [Sidebar.js](mdc:frontend/src/components/Sidebar.js)
+- App layout container: [App.js](mdc:frontend/src/App.js)
+- Responsive modal example: [NewPromptModal.js](mdc:frontend/src/components/NewPromptModal.js)
+- Text scaling example: [InitialViewAnimation.js](mdc:frontend/src/components/InitialViewAnimation.js)

@@ -34,7 +34,7 @@ const TagItem = ({ tag, onRemove }) => {
   );
 };
 
-function NewPromptModal({ isOpen, onClose, onSubmit, availableTags = [] }) {
+function NewPromptModal({ isOpen, onClose, onSubmit, availableTags = [], templatePromptText = '' }) {
   const [title, setTitle] = useState('');
   const [initialPromptText, setInitialPromptText] = useState('');
   const [initialNotes, setInitialNotes] = useState('');
@@ -42,6 +42,13 @@ function NewPromptModal({ isOpen, onClose, onSubmit, availableTags = [] }) {
   const [currentTagNameInput, setCurrentTagNameInput] = useState('');
   const [currentTagThemeInput, setCurrentTagThemeInput] = useState(TAG_THEMES[2].name); // Default to 'new' theme
   const [showThemePicker, setShowThemePicker] = useState(false); // State for theme picker
+
+  // Effect to populate initial prompt text when template is used
+  React.useEffect(() => {
+    if (templatePromptText) {
+      setInitialPromptText(templatePromptText);
+    }
+  }, [templatePromptText]);
 
   if (!isOpen) return null;
 

@@ -167,35 +167,34 @@ function PlaygroundView({
 
   if (!prompt || !selectedVersionId || !selectedVersion) {
     return (
-      <div className="text-center text-gray-500 mt-10">
+      <div className="text-center text-light-secondary mt-10 text-xs sm:text-sm">
         Select a prompt and a version from the 'Details' view to start testing.
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col space-y-4">
+    <div className="h-auto sm:h-full flex flex-col space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium text-light">
+        <h3 className="text-base sm:text-lg font-medium text-light">
           Testing: <span className="font-semibold text-secondary">{prompt.title}</span> - {' '}
           <span className="font-semibold text-light-secondary">{selectedVersionId}</span>
         </h3>
-        {/* LLM Provider and Model Dropdowns */} 
+        {/* Desktop: Dropdowns above grid, right-aligned */}
         {isAuthenticated && (
-          <div className="flex items-center gap-4">
-            {/* Provider Dropdown */}
-            <div className="flex items-center">
-              <label htmlFor="llm-provider-select" className="text-sm font-medium text-light-secondary mr-2">
+          <div className="hidden sm:flex  flex-row justify-end items-end gap-2 ml-4 flex-1">
+            <div>
+              <label htmlFor="llm-provider-select-desktop" className="mr-2 text-xs sm:text-sm font-medium text-light-secondary mb-1 text-right">
                 Provider:
               </label>
               {apiKeysLoading ? (
-                <span className="text-sm text-light-secondary italic">Loading keys...</span>
+                <span className="text-xs sm:text-sm text-light-secondary italic">Loading keys...</span>
               ) : availableProviders.length > 0 ? (
                 <select 
-                  id="llm-provider-select"
+                  id="llm-provider-select-desktop"
                   value={selectedLlmProvider}
-                  onChange={(e) => handleProviderChange(e.target.value)} // Use new handler
-                  className="bg-dark text-light border border-light rounded-md p-1.5 text-sm focus:ring-secondary focus:border-secondary min-w-[120px]"
+                  onChange={(e) => handleProviderChange(e.target.value)}
+                  className=" rounded-md border-light shadow-sm focus:border-primary focus:ring-primary text-xs sm:text-sm p-2 bg-surface mb-2 text-light min-w-[140px]"
                   disabled={isLoading}
                 >
                   {availableProviders.map(provider => (
@@ -203,21 +202,20 @@ function PlaygroundView({
                   ))}
                 </select>
               ) : (
-                <span className="text-sm text-light-secondary italic">No API keys configured.</span>
+                <span className="text-xs sm:text-sm text-light-secondary italic">No API keys configured.</span>
               )}
             </div>
-
             {/* Model Dropdown - Shown if a provider is selected and has models */}
             {selectedLlmProvider && AVAILABLE_MODELS_BY_PROVIDER[selectedLlmProvider.toLowerCase()] && (
-              <div className="flex items-center">
-                <label htmlFor="llm-model-select" className="text-sm font-medium text-light-secondary mr-2">
+              <div>
+                <label htmlFor="llm-model-select-desktop" className="mx-2 text-xs sm:text-sm font-medium text-light-secondary mb-1 text-right">
                   Model:
                 </label>
                 <select
-                  id="llm-model-select"
+                  id="llm-model-select-desktop"
                   value={selectedModelId}
                   onChange={(e) => setSelectedModelId(e.target.value)}
-                  className="bg-dark text-light border border-light rounded-md p-1.5 text-sm focus:ring-secondary focus:border-secondary min-w-[180px]"
+                  className="rounded-md border-light shadow-sm focus:border-primary focus:ring-primary text-xs sm:text-sm p-2 bg-surface mb-2 text-light min-w-[180px]"
                   disabled={isLoading || !selectedLlmProvider}
                 >
                   {(AVAILABLE_MODELS_BY_PROVIDER[selectedLlmProvider.toLowerCase()] || []).map(model => (
@@ -229,9 +227,9 @@ function PlaygroundView({
           </div>
         )}
       </div>
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-hidden">
-        <div className="flex flex-col bg-surface glass p-6 rounded-xl border border-light overflow-hidden">
-          <label htmlFor="editable-prompt" className="block text-sm font-medium text-light-secondary mb-2">
+      <div className="flex-1  grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-visible">
+        <div className="flex flex-col bg-surface glass p-3 sm:p-6 rounded-xl border border-light overflow-hidden">
+          <label htmlFor="editable-prompt" className="block text-xs sm:text-sm font-medium text-light-secondary  mb-2">
             Edit Prompt:
           </label>
           <textarea
@@ -239,38 +237,86 @@ function PlaygroundView({
             name="editable-prompt"
             value={editedPromptText}
             onChange={(e) => setEditedPromptText(e.target.value)}
-            className="flex-1 w-full p-3 border border-light rounded-lg text-sm bg-dark text-light focus:ring-secondary focus:border-secondary resize-none mb-3"
+            className="flex-1 w-full p-8 border border-light rounded-lg whitespace-pre-wrap overflow-y-auto text-xs sm:text-sm bg-dark text-light focus:ring-secondary focus:border-secondary resize-none mb-3"
             placeholder="Enter or edit your prompt text here..."
           />
-          <div className="mt-auto flex justify-between items-center pt-3 border-light-top">
-            <button
-              onClick={handleRunTest}
-              disabled={isLoading || !editedPromptText.trim() || (isAuthenticated && (!selectedLlmProvider || !selectedModelId) && !apiKeysLoading)}
-              className={`btn-secondary font-medium py-2 px-4 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-sm ${isLoading ? 'animate-pulse' : ''}`}
-            >
-              {isLoading ? 'Running...' : 'Run Test'}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isLoading || isSavingNewVersion || !editedPromptText.trim() || editedPromptText === selectedVersion.text}
-              className="btn-accent font-medium py-2 px-4 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {isSavingNewVersion ? 'Saving...' : 'Save as New Version'}
-            </button>
+          <div className="mt-auto flex flex-col gap-3 pt-3 border-light-top">
+            <div className="flex gap-2 w-full">
+              <button
+                onClick={handleRunTest}
+                disabled={isLoading || !editedPromptText.trim() || (isAuthenticated && (!selectedLlmProvider || !selectedModelId) && !apiKeysLoading)}
+                className={`btn-secondary font-medium py-2 px-4 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm w-1/2 ${isLoading ? 'animate-pulse' : ''}`}
+              >
+                {isLoading ? 'Running...' : 'Run Test'}
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isLoading || isSavingNewVersion || !editedPromptText.trim() || editedPromptText === selectedVersion.text}
+                className="btn-accent font-medium py-2 px-4 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm w-1/2"
+              >
+                {isSavingNewVersion ? 'Saving...' : 'Save as New Version'}
+              </button>
+            </div>
+            {/* Mobile: Dropdowns below buttons */}
+            {isAuthenticated && (
+              <div className="flex flex-col gap-2 mt-2 sm:hidden">
+                <div>
+                  <label htmlFor="llm-provider-select" className="block text-xs sm:text-sm font-medium text-light-secondary mb-1">
+                    Provider:
+                  </label>
+                  {apiKeysLoading ? (
+                    <span className="text-xs sm:text-sm text-light-secondary italic">Loading keys...</span>
+                  ) : availableProviders.length > 0 ? (
+                    <select 
+                      id="llm-provider-select"
+                      value={selectedLlmProvider}
+                      onChange={(e) => handleProviderChange(e.target.value)}
+                      className="block w-full rounded-md border-light shadow-sm focus:border-primary focus:ring-primary text-xs sm:text-sm p-2 bg-surface mb-2 text-light"
+                      disabled={isLoading}
+                    >
+                      {availableProviders.map(provider => (
+                        <option key={provider.value} value={provider.value}>{provider.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs sm:text-sm text-light-secondary italic">No API keys configured.</span>
+                  )}
+                </div>
+                {/* Model Dropdown - Shown if a provider is selected and has models */}
+                {selectedLlmProvider && AVAILABLE_MODELS_BY_PROVIDER[selectedLlmProvider.toLowerCase()] && (
+                  <div>
+                    <label htmlFor="llm-model-select" className="block text-xs sm:text-sm font-medium text-light-secondary mb-1">
+                      Model:
+                    </label>
+                    <select
+                      id="llm-model-select"
+                      value={selectedModelId}
+                      onChange={(e) => setSelectedModelId(e.target.value)}
+                      className="block w-full rounded-md border-light shadow-sm focus:border-primary focus:ring-primary text-xs sm:text-sm p-2 bg-surface mb-2 text-light"
+                      disabled={isLoading || !selectedLlmProvider}
+                    >
+                      {(AVAILABLE_MODELS_BY_PROVIDER[selectedLlmProvider.toLowerCase()] || []).map(model => (
+                        <option key={model.value} value={model.value}>{model.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
-        <div className="flex flex-col bg-surface glass p-6 rounded-xl border border-light overflow-hidden">
-          <label htmlFor="ai-output" className="block text-sm font-medium text-light-secondary mb-2">
+        <div className="flex flex-col bg-surface glass p-3 sm:p-6 rounded-xl border border-light overflow-hidden">
+          <label htmlFor="ai-output" className="block text-xs sm:text-sm font-medium text-light-secondary mb-2">
             AI Output:
           </label>
-          <div id="ai-output" className="flex-1 w-full p-3 border border-light bg-dark text-light rounded-lg text-sm overflow-y-auto whitespace-pre-wrap break-words">
+          <div id="ai-output" className="flex-1 w-full p-3 border border-light bg-dark text-light rounded-lg text-xs sm:text-sm overflow-y-auto whitespace-pre-wrap break-words">
             {aiOutput || <span className="text-light-tertiary italic">Click 'Run Test' to see the AI output...</span>}
           </div>
         </div>
       </div>
-      <div className="bg-surface glass p-6 rounded-xl border border-light mt-4 flex-shrink-0">
-        <h4 className="font-semibold mb-2 text-light">Original Prompt ({selectedVersionId}):</h4>
-        <pre className="bg-dark p-3 rounded text-sm text-light whitespace-pre-wrap break-words overflow-x-auto border border-light">
+      <div className="bg-surface glass p-3 sm:p-6 rounded-xl border border-light mt-4 flex-shrink-0">
+        <h4 className="font-semibold mb-2 text-light text-xs sm:text-base">Original Prompt ({selectedVersionId}):</h4>
+        <pre className="bg-dark p-3 rounded text-xs sm:text-sm text-light whitespace-pre-wrap break-words overflow-x-auto border border-light">
           {selectedVersion.text}
         </pre>
       </div>

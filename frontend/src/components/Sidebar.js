@@ -1,6 +1,6 @@
 // frontend/src/components/Sidebar.js
 import React from 'react';
-import { FaCog, FaSignInAlt, FaSignOutAlt, FaUserCircle, FaBars, FaTimes } from 'react-icons/fa';
+import { FaCog, FaSignInAlt, FaSignOutAlt, FaUserCircle, FaBars, FaTimes, FaLayerGroup } from 'react-icons/fa';
 import SettingsModal from './SettingsModal'; // Keep this import
 
 function Sidebar({
@@ -17,8 +17,10 @@ function Sidebar({
   onLogin,
   onLogout,
   isMobileMenuOpen,
-  setIsMobileMenuOpen
-}) {
+  setIsMobileMenuOpen,
+  onShowTemplates // New prop for showing templates
+}) 
+{
   const handleMobileMenuToggle = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
@@ -32,7 +34,7 @@ function Sidebar({
       {/* Mobile Hamburger Button */}
       <button
         onClick={handleMobileMenuToggle}
-        className="block sm:hidden fixed top-4 left-4 z-50 p-2 bg-card border border-light rounded-lg text-light hover:text-primary transition-colors duration-200"
+        className="block sm:hidden fixed top-4 right-4 z-[999] p-1.5 bg-card border border-light rounded-lg text-light hover:text-primary transition-colors duration-200"
         aria-label="Toggle menu"
       >
         {isMobileMenuOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
@@ -63,15 +65,7 @@ function Sidebar({
                 My Prompts
                 <span className="block h-0.5 w-8 mt-1 rounded bg-secondary absolute left-0 -bottom-2"></span>
               </h2>
-              <div className="flex items-center gap-2">
-                {/* Mobile close button - only show on mobile when drawer is open */}
-                <button
-                  onClick={handleMobileMenuClose}
-                  className="block sm:hidden p-1 text-light-secondary hover:text-light rounded transition-colors duration-200"
-                  aria-label="Close menu"
-                >
-                  <FaTimes size={16} />
-                </button>
+              <div className="flex items-center mt-1 gap-2">
                 {isAuthenticated && user?.picture && (
                   <img src={user.picture} alt={user.name || 'User'} className="w-8 h-8 rounded-full border-2 border-primary" />
                 )}
@@ -91,6 +85,18 @@ function Sidebar({
           >
             + New Prompt
           </button>
+          <button
+            onClick={() => {
+              onShowTemplates();
+              handleMobileMenuClose(); // Close mobile menu when templates is clicked
+            }}
+            className="w-full btn-secondary font-medium py-3 px-4 rounded-xl transition duration-150 ease-in-out shadow-md text-xs mb-2 flex items-center justify-center"
+            style={{minHeight: '44px'}}
+          >
+            <FaLayerGroup className="mr-2" size={14} />
+            Templates
+          </button>
+          <div className="mt-4"></div>
           <div className="mt-4">
             <label htmlFor="tag-filter" className="block text-sm font-medium text-light-secondary mb-1">
               Filter by Tag:
@@ -112,7 +118,7 @@ function Sidebar({
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto prompt-list p-2 space-y-3">
+        <nav className="flex-1 overflow-y-auto prompt-list p-2 space-y-3 sm:flex-grow">
           {prompts.map((prompt) => {
             const isSelected = prompt.id === selectedPromptId;
             return (
@@ -155,7 +161,7 @@ function Sidebar({
               <p className="p-3 text-sm text-light-secondary italic">Log in to see and save your prompts.</p>
           )}
         </nav>
-        <div className="p-4 flex gap-2 items-center border-light-top">
+        <div className="p-4 flex gap-2 items-center border-light-top sm:mt-auto">
           {isAuthenticated ? (
             <button
               onClick={onLogout}

@@ -37,7 +37,7 @@
   /* Text & Border Colors */
   --light-text: #F8F9FA;                /* Primary Text */
   --light-text-secondary: rgba(255, 255, 255, 0.7); /* Secondary Text */
-  --light-text-tertiary: rgba(255, 255, 255, 0.5);  /* Tertiary Text */
+  --light-text-tertiary: rgba(25, 25, 25, 0.9);  /* Tertiary Text */
   --light-border: rgba(255, 255, 255, 0.12);        /* Border Color */
   
   /* Element States */
@@ -231,7 +231,7 @@
   text-fill-color: transparent;
 }
 
-/* Apply Inter font globally */
+/* Apply Inter font globally, ensure configured in index.html */
 body {
   font-family: 'Inter', sans-serif;
   /* Optional: Add base background and text colors if not done elsewhere */
@@ -243,6 +243,7 @@ body {
   font-family: 'Montserrat Alternates', sans-serif;
   font-weight:800;
 }
+
 
 /* Custom scrollbar for prompt list (applied via className in Sidebar) */
 .prompt-list::-webkit-scrollbar {
@@ -276,10 +277,154 @@ body {
   }
 } */
 
-/* Ensure you have imported the Inter font in your main HTML file (public/index.html) */
-/* or configure Tailwind to use it */
-/* Example for public/index.html:
-   <link rel="preconnect" href="https://fonts.googleapis.com">
-   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-*/
+
+/* Hide all scrollbars globally */
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  background: transparent !important;
+}
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+/* Override for scrollable prompt boxes */
+.scrollable-prompt-box::-webkit-scrollbar {
+  display: block !important;
+  width: 8px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.scrollable-prompt-box::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 4px !important;
+}
+
+.scrollable-prompt-box::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.4) !important;
+  border-radius: 4px !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.scrollable-prompt-box::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.scrollable-prompt-box {
+  scrollbar-width: thin !important; /* Firefox */
+  scrollbar-color: rgba(255, 255, 255, 0.4) rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Line clamp utility */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Smooth scrolling for mobile carousel */
+.overflow-x-auto {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Parallax Flip Card Styles */
+.flip-card {
+  perspective: 1000px;
+  height: 100%;
+  position: relative;
+}
+
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.8s ease-in-out;
+}
+
+.flip-card.flipped .flip-card-inner {
+  transform: rotateY(180deg);
+}
+
+.flip-card-front, .flip-card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 20px;
+  transform-style: preserve-3d;
+}
+
+.flip-card-front {
+  background: linear-gradient(135deg, rgb(141, 45, 226, 0.5) 0%, rgba(0, 245, 160, 0.5  ) 120%);
+  border: 3px solid  #333A7A;
+  box-shadow: 4px 4px 0px rgba(51, 58, 122, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  z-index: 4;
+}
+
+.flip-card-back {
+  background-color: var(--dark-surface);
+  border: 3px solid var(--light-border);
+  box-shadow: 4px 4px 0px var(--light-border);
+  transform: rotateY(180deg);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Parallax effect for front card elements */
+.flip-card-front .text-center {
+  transition: transform 0.4s ease-in-out;
+  transform-style: preserve-3d;
+}
+
+.flip-card.flipped .flip-card-front .text-center {
+  transform: translateZ(150px) rotateY(-20deg);
+}
+
+/* Parallax effect for back card elements */
+.flip-card-back > * {
+  transition: transform 0.2s ease-in-out;
+  transform-style: preserve-3d;
+  opacity: 0;
+}
+
+.flip-card.flipped .flip-card-back > * {
+  opacity: 1;
+  transform: translateZ(40px);
+}
+
+.flip-card.flipped .flip-card-back > *:nth-child(1) {
+  transition-delay: 0.1s;
+}
+
+.flip-card.flipped .flip-card-back > *:nth-child(2) {
+  transition-delay: 0.2s;
+}
+
+.flip-card.flipped .flip-card-back > *:nth-child(3) {
+  transition-delay: 0.3s;
+}
+
+.flip-card.flipped .flip-card-back > *:nth-child(4) {
+  transition-delay: 0.4s;
+}
+
+.flip-card.flipped .flip-card-back > *:nth-child(5) {
+  transition-delay: 0.5s;
+}
+
+/* Additional depth effect */
+.flip-card:hover {
+  transform: translateY(-5px);
+  transition: transform 0.5s ease-out;
+}
+
+

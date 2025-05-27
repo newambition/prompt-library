@@ -3,19 +3,20 @@ import { motion } from 'framer-motion';
 
 // Adjusted color palette for the prompt-library theme (dark blues, purples, teals)
 const lineColors = [
-  'rgba(59, 130, 246, 0.5)',  // blue-500
-  'rgba(96, 165, 250, 0.6)',  // blue-400
-  'rgba(129, 140, 248, 0.5)', // indigo-400
-  'rgba(165, 180, 252, 0.4)', // indigo-300
-  'rgba(20, 184, 166, 0.4)',  // teal-500 (example, can be adjusted)
-  'rgba(100, 116, 139, 0.3)', // slate-500 (example, for softer lines)
-];
-
+  'rgba(59, 130, 246, 0.7)',  // blue-500
+  'rgba(96, 165, 250, 0.7)',  // blue-400
+  'rgba(129, 140, 248, 0.7)', // indigo-400
+  'rgba(165, 180, 252, 0.7)', // indigo-300
+  'rgba(20, 184, 166, 0.7)',  // teal-500 (example, can be adjusted)
+  'rgba(100, 116, 139, 0.7)', // slate-500 (example, for softer lines)
+]
+//#endregion
+//#region 
 const InitialViewAnimation = () => {
   const canvasRef = useRef(null);
-  const [isAnimating, setIsAnimating] = useState(true);
+  const [isAnimating, setIsAnimating] = useState(true)
   const frameCountRef = useRef(5);
-  const animationFrameIdRef = useRef(null);
+  const animationFrameIdRef = useRef(null)
   const contextRef = useRef(null);
   const parentRef = useRef(null); // To store parent element for resize
 
@@ -24,7 +25,7 @@ const InitialViewAnimation = () => {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     const numLines = 20;
     const maxAmplitude = ctx.canvas.height / 6;
-    const time = frameCount * 0.008;
+    const time = frameCount * 0.009;
 
     for (let i = 0; i < numLines; i++) {
       ctx.beginPath();
@@ -32,14 +33,14 @@ const InitialViewAnimation = () => {
       ctx.strokeStyle = lineColors[i % lineColors.length];
 
       const freq = 0.008 + (i * 0.0015);
-      const amp = maxAmplitude * (0.4 + Math.sin(time * 0.5 + i * 0.3) * 0.3);
+      const amp = maxAmplitude * (0.4 + Math.sin(time * 0.5 + i * 0.3) * 0.5);
       const yOffset = ctx.canvas.height / 2 + Math.sin(i * 0.15 + time * 0.6) * (ctx.canvas.height / 5.5);
       const phaseShift = i * 0.4;
       const speed = 0.4 + (i % 6) * 0.12;
 
       ctx.moveTo(0, yOffset + Math.sin(time * speed + phaseShift) * amp);
       for (let x = 0; x < ctx.canvas.width + 10; x += 10) {
-        const yNoise = (Math.random() - 0.2) * 2;
+        const yNoise = (Math.random() - 0.2) * 0;
         const y = yOffset + Math.sin(x * freq + time * speed + phaseShift) * amp * Math.cos(x / (150 + i * 12) + time * 1) + yNoise;
         ctx.lineTo(x, y);
       }
@@ -99,31 +100,31 @@ const InitialViewAnimation = () => {
   };
 
   const titleVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 0 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
         delay: 0.4, // Delay slightly after container fades in
         duration: 5,
-        ease: "easeOut",
+        ease: "easeInOut",
       },
     },
   };
 
   const taglineVariants = {
-    hidden: { opacity: 0, y: 10 },
+    hidden: { opacity: 0, y: 0 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
         delay: 0.6, // Delay slightly after title
         duration: 5,
-        ease: "easeOut",
+        ease: "easeInOut",
       },
     },
   };
-
+//#endregion
   return (
     <motion.div
       key="initial-view-animation"
@@ -147,12 +148,17 @@ const InitialViewAnimation = () => {
         </motion.h1>
         <motion.p
           variants={taglineVariants}
-          className="text-lg sm:text-xl md:text-2xl text-light-secondary tracking-tight font-light font-body"
+          className="text-lg sm:text-xl md:text-2xl text-light tracking-tighter font-light font-body"
         >
           Craft. Test. Refine.
         </motion.p>
       </motion.div>
+      
+   
+    
+     
     </motion.div>
+   
   );
 };
 

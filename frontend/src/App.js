@@ -44,12 +44,11 @@ function App() {
   const [error, setError] = useState(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showNewPromptModal, setShowNewPromptModal] = useState(false);
-
-  // State for user API keys - lifted from SettingsModal
   const [userApiKeys, setUserApiKeys] = useState([]);
   const [apiKeysLoading, setApiKeysLoading] = useState(false);
   const [apiKeysError, setApiKeysError] = useState(null);
   const [isDetailsViewBusy, setIsDetailsViewBusy] = useState(false);
+  const [templatePromptText, setTemplatePromptText] = useState('');
 
   // Mobile menu state for responsive sidebar
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -452,6 +451,18 @@ function App() {
     }
   }, [isAuthenticated, loginWithRedirect]);
 
+  const handleShowTemplates = useCallback(() => {
+    setCurrentView('templates');
+    setSelectedPromptId(null);
+    setSelectedVersionId(null);
+  }, []);
+
+  const handleUseTemplate = useCallback((template) => {
+    // Store the template prompt text and open the modal
+    setTemplatePromptText(template.prompt);
+    setShowNewPromptModal(true);
+  }, []);
+
 
   if (authIsLoading) return <div className="flex items-center justify-center h-screen text-lg">Loading authentication...</div>;
 
@@ -459,12 +470,12 @@ function App() {
   const showInitialAnimation = 
     !authIsLoading && 
     !dataLoading && 
-    !isAuthenticated && 
     !selectedPrompt && 
-    !error;
+    !error &&
+    currentView !== 'templates';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-dark text-light">
+    <div className="flex h-screen overflow-hidden bg-cartoon-bg-light text-cartoon-text">
       <Sidebar
         prompts={filteredPrompts}
         selectedPromptId={selectedPromptId}
@@ -480,10 +491,11 @@ function App() {
         onLogout={handleLogout}
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
+        onShowTemplates={handleShowTemplates}
       />
       
       {/* Main content container - responsive width and padding for mobile */}
-      <div className="flex-1 flex flex-col overflow-hidden sm:ml-0 pt-12 sm:pt-0">
+      <div className="flex-1 flex flex-col overflow-hidden sm:ml-0">
         <AnimatePresence mode="wait">
           {showInitialAnimation && (
             <motion.div key="initial-animation-container" className="flex-1 flex flex-col overflow-hidden">
@@ -502,7 +514,7 @@ function App() {
                   {error}
               </motion.div>
           )}
-          {(!dataLoading && !error && !showInitialAnimation && selectedPrompt) && (
+          {(!dataLoading && !error && !showInitialAnimation && (selectedPrompt || currentView === 'templates')) && (
             <MainContent
               key={selectedPrompt ? selectedPrompt.id : 'main-content'}
               currentView={currentView}
@@ -522,9 +534,10 @@ function App() {
               userApiKeys={userApiKeys}
               apiKeysLoading={apiKeysLoading}
               isDetailsViewBusy={isDetailsViewBusy}
+              onUseTemplate={handleUseTemplate}
             />
           )}
-          {(!dataLoading && !error && !showInitialAnimation && !selectedPrompt && isAuthenticated) && (
+          {(!dataLoading && !error && !showInitialAnimation && !selectedPrompt && isAuthenticated && currentView !== 'templates') && (
             <motion.div key="select-prompt-auth" className="flex-1 flex items-center justify-center p-6 text-lg text-light-secondary" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               Select a prompt from the list to see its details, or create a new one.
             </motion.div>
@@ -534,9 +547,13 @@ function App() {
 
       <NewPromptModal
         isOpen={showNewPromptModal}
-        onClose={() => setShowNewPromptModal(false)}
+        onClose={() => {
+          setShowNewPromptModal(false);
+          setTemplatePromptText(''); // Clear template text when modal closes
+        }}
         onSubmit={handleSubmitNewPrompt}
         availableTags={availableTags}
+        templatePromptText={templatePromptText}
       />
       {showSettingsModal && isAuthenticated && (
         <SettingsModal

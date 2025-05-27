@@ -1,0 +1,85 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Component State Management Patterns
+
+## Overview
+This project uses React hooks for state management with specific patterns for UI state, authentication state, and responsive component behavior.
+
+## Mobile Menu State Pattern
+
+### Implementation in [App.js](mdc:frontend/src/App.js)
+```jsx
+// Mobile menu state for responsive sidebar
+const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+```
+
+**Key Principles:**
+- Mobile menu state is managed at the App level
+- Passed down to [Sidebar.js](mdc:frontend/src/components/Sidebar.js) as props
+- State controls both hamburger button icon and sidebar visibility
+- Auto-closes when user selects a prompt (good UX)
+
+### Sidebar Component Pattern
+The [Sidebar.js](mdc:frontend/src/components/Sidebar.js) component demonstrates:
+- Accepting mobile state as props: `isMobileMenuOpen`, `setIsMobileMenuOpen`
+- Local handler functions for menu actions
+- Consistent close behavior across different user interactions
+
+## Modal State Management
+
+### Pattern Used
+- Boolean state for modal visibility (e.g., `showSettingsModal`, `showNewPromptModal`)
+- Handler functions passed down as props
+- Conditional rendering based on authentication state where applicable
+
+### Example from [App.js](mdc:frontend/src/App.js):
+```jsx
+const [showNewPromptModal, setShowNewPromptModal] = useState(false);
+
+const handleAddNewPrompt = useCallback(async () => {
+  if (!isAuthenticated) {
+    // Handle unauthenticated case
+  }
+  setShowNewPromptModal(true);
+}, [isAuthenticated]);
+```
+
+## Authentication-Gated State
+
+### Pattern
+- Use authentication checks before state changes that require login
+- Provide fallback behavior for unauthenticated users
+- Show appropriate messages/prompts for login
+
+### Settings Modal Example
+```jsx
+const handleShowSettings = useCallback(() => {
+  if (!isAuthenticated) {
+    alert(LOGIN_REQUIRED_FOR_SETTINGS_MESSAGE);
+    loginWithRedirect({ appState: { returnTo: window.location.pathname } }); 
+  } else {
+    setShowSettingsModal(true);
+  }
+}, [isAuthenticated, loginWithRedirect]);
+```
+
+## State Lifting Guidelines
+
+### When to Lift State
+1. **Cross-component communication**: Mobile menu affects both header and sidebar
+2. **Authentication dependency**: Modal visibility that depends on auth state
+3. **URL/routing implications**: State that should persist across navigation
+
+### State Location Decisions
+- **App.js**: Authentication state, global UI state (mobile menu, major modals)
+- **Component level**: Local UI state (form inputs, temporary visibility)
+- **Custom hooks**: Reusable stateful logic (API calls, form management)
+
+## File References
+- Main state management: [App.js](mdc:frontend/src/App.js)
+- Mobile menu consumer: [Sidebar.js](mdc:frontend/src/components/Sidebar.js)
+- Modal examples: [NewPromptModal.js](mdc:frontend/src/components/NewPromptModal.js)
+- Main content state: [MainContent.js](mdc:frontend/src/components/MainContent.js)
