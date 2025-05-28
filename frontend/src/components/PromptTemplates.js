@@ -2,8 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaCopy, FaPlus } from 'react-icons/fa';
 import { PROMPT_TEMPLATES } from '../constants/promptTemplates';
 
+// Utility function to convert category name to CSS class name
+const getCategoryClassName = (category) => {
+  return `category-${category.toLowerCase().replace(/\s+/g, '-').replace(/&/g, '').replace(/-+/g, '-')}`;
+};
+
 function PromptTemplates({ onUseTemplate, selectedCategory, onCategoryChange }) {
-  const [currentSlide, setCurrentSlide] = useState(0);
+  
   const [hoveredCard, setHoveredCard] = useState(null);
   const [hoverTimer, setHoverTimer] = useState(null);
   const scrollContainerRef = useRef(null);
@@ -46,13 +51,7 @@ function PromptTemplates({ onUseTemplate, selectedCategory, onCategoryChange }) 
     };
   }, [filteredTemplates]);
 
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % filteredTemplates.length);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + filteredTemplates.length) % filteredTemplates.length);
-  };
+  
 
   const handleUseTemplate = (template) => {
     if (onUseTemplate) {
@@ -95,7 +94,6 @@ function PromptTemplates({ onUseTemplate, selectedCategory, onCategoryChange }) 
             value={selectedCategory}
             onChange={(e) => {
               onCategoryChange(e.target.value);
-              setCurrentSlide(0); // Reset to first slide when category changes
             }}
             className="bg-surface text-light text-xs p-2 min-w-[140px] rounded-xl mr-3"
           >
@@ -128,7 +126,7 @@ function PromptTemplates({ onUseTemplate, selectedCategory, onCategoryChange }) 
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
                           <h4 className="font-bold text-light text-sm mb-1">{template.title}</h4>
-                          <span className="bg-secondary text-light-tertiary text-xs px-2 py-1 rounded-xl">
+                          <span className={`${getCategoryClassName(template.category)} text-xs px-2 py-1 rounded-xl`}>
                             {template.category}
                           </span>
                         </div>
@@ -180,7 +178,7 @@ function PromptTemplates({ onUseTemplate, selectedCategory, onCategoryChange }) 
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
                           <h4 className="font-bold text-light text-sm mb-1">{template.title}</h4>
-                          <span className="bg-secondary text-light-tertiary text-xs px-2 py-1 rounded-xl">
+                          <span className={`${getCategoryClassName(template.category)} text-xs px-2 py-1 rounded-xl`}>
                             {template.category}
                           </span>
                         </div>
@@ -232,7 +230,7 @@ function PromptTemplates({ onUseTemplate, selectedCategory, onCategoryChange }) 
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
                           <h4 className="font-bold text-light text-sm mb-1">{template.title}</h4>
-                          <span className="bg-secondary text-light-tertiary text-xs px-2 py-1 rounded-xl">
+                          <span className={`${getCategoryClassName(template.category)} text-xs px-2 py-1 rounded-xl`}>
                             {template.category}
                           </span>
                         </div>
@@ -251,7 +249,7 @@ function PromptTemplates({ onUseTemplate, selectedCategory, onCategoryChange }) 
                       </div>
                       
                       <div className="flex flex-wrap gap-1 mb-3">
-                        {template.tags.map(tag => (
+                        {template.tags && template.tags.map((tag) => (
                           <span key={tag} className="tag-new rounded-lg text-xs px-2 py-0.5">
                             {tag}
                           </span>
@@ -302,7 +300,7 @@ function PromptTemplates({ onUseTemplate, selectedCategory, onCategoryChange }) 
                       {template.title}
                     </h4>
                     <div className="flex justify-center items-start mb-1">
-                      <span className="tag-new rounded-lg text-xs px-2 py-0.5">
+                      <span className={`${getCategoryClassName(template.category)} text-xs px-2 py-1 rounded-xl`}>
                         {template.category}
                       </span>
                     </div>
@@ -345,14 +343,14 @@ function PromptTemplates({ onUseTemplate, selectedCategory, onCategoryChange }) 
                   <div className="flex gap-2 mt-auto">
                     <button
                       onClick={() => copyToClipboard(template.prompt)}
-                      className="w-full flex items-center justify-center btn-secondary font-medium py-2 px-4 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                      className="w-full flex items-center justify-center bg-secondary-gradient text-dark-bg font-medium py-2 px-4 rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
                     >
                       <FaCopy className="mr-2" /> 
                       Copy
                     </button>
                     <button
                       onClick={() => handleUseTemplate(template)}
-                      className="w-full flex items-center justify-center btn-accent rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                      className="w-full flex items-center justify-center bg-accent-gradient text-light rounded-xl transition duration-150 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
                     >
                       <FaPlus className="mr-2" /> 
                       Use

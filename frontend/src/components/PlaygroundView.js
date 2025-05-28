@@ -310,7 +310,7 @@ function PlaygroundView({
             AI Output:
           </label>
           <div id="ai-output" className="flex-1 w-full p-3 border border-light bg-dark text-light rounded-lg text-xs sm:text-sm overflow-y-auto whitespace-pre-wrap break-words">
-            {aiOutput || <span className="text-light-tertiary italic">Click 'Run Test' to see the AI output...</span>}
+            {aiOutput || <span className="text-light italic">Click 'Run Test' to see the AI output...</span>}
           </div>
         </div>
       </div>

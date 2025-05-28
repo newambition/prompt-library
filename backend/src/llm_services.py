@@ -178,7 +178,5 @@ async def get_llm_response(provider_name: str, api_key: str, model_id: str, prom
     provider_instance = provider_class()
     return await provider_instance.generate_text(api_key=api_key, model_id=model_id, prompt_text=prompt_text)
 
-# Remove old standalone function if it exists (or comment out)
-# async def generate_text_from_gemini(api_key: str, prompt_text: str) -> tuple[Optional[str], Optional[str]]:
-#     ... (old implementation)
+
 

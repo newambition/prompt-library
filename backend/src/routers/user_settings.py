@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Union
 
 from src import schemas
-from src.crud import crud_api_keys # Assuming __init__.py in crud allows this
+from src.crud import crud_api_keys, crud_users # Import crud_users
 from src.database import get_db
 from src.auth_utils import verify_token # For securing endpoints
 
@@ -19,10 +19,9 @@ async def create_user_api_key_endpoint(
     db: Session = Depends(get_db),
     current_user: Dict = Depends(verify_token)
 ):
-    user_id = current_user.get("sub")
-    if not user_id:
-        # This case should ideally be caught by verify_token if 'sub' is mandatory
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID (sub) not found in token")
+    # Get or create user and get internal user_id
+    user = crud_users.get_or_create_user_from_auth0(db, current_user)
+    user_id = user.user_id
 
     try:
         db_api_key = crud_api_keys.create_user_api_key(
@@ -53,9 +52,9 @@ async def list_user_api_keys_endpoint(
     db: Session = Depends(get_db),
     current_user: Dict = Depends(verify_token)
 ):
-    user_id = current_user.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID (sub) not found in token")
+    # Get or create user and get internal user_id
+    user = crud_users.get_or_create_user_from_auth0(db, current_user)
+    user_id = user.user_id
 
     db_api_keys = crud_api_keys.get_user_api_keys(db=db, user_id=user_id)
     # Pydantic will automatically convert the list of UserApiKeyDB model instances
@@ -69,9 +68,9 @@ async def update_user_api_key_endpoint(
     db: Session = Depends(get_db),
     current_user: Dict = Depends(verify_token)
 ):
-    user_id = current_user.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID (sub) not found in token")
+    # Get or create user and get internal user_id
+    user = crud_users.get_or_create_user_from_auth0(db, current_user)
+    user_id = user.user_id
 
     try:
         updated_db_api_key = crud_api_keys.update_user_api_key(
@@ -98,9 +97,9 @@ async def delete_user_api_key_endpoint(
     db: Session = Depends(get_db),
     current_user: Dict = Depends(verify_token)
 ):
-    user_id = current_user.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID (sub) not found in token")
+    # Get or create user and get internal user_id
+    user = crud_users.get_or_create_user_from_auth0(db, current_user)
+    user_id = user.user_id
 
     identifier_to_use: Union[str, int]
     try:

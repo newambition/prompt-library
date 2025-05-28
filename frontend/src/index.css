@@ -7,7 +7,7 @@
   --primary: #8E2DE2;         /* Vibrant Purple */
   --primary-dark: #4A00E0;    /* Deep Purple */
   --primary-gradient: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-  --title-gradient: linear-gradient(135deg, rgb(141, 45, 226, 0.8) 0%, rgba(0, 245, 160, 0.8) 120%);
+  --title-gradient: linear-gradient(90deg, rgb(141, 45, 226) -50%, rgba(0, 245, 160) 150%);
   
   /* Secondary & Accent Colors */
   --secondary: #00F5A0;       /* Mint Green */
@@ -50,13 +50,14 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.22);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.25);
   
-  --shadow-primary: 0 4px 12px rgba(142, 45, 226, 0.25);
+  --shadow-primary: 0 4px 12px rgba(142, 45, 226, 0.4);
 
   --shadow-primary-hover: 0 6px 16px rgba(142, 45, 226, 0.35);
   
-  --shadow-secondary: 0 4px 12px rgba(0, 245, 160, 0.2);
+  --shadow-secondary: 0 4px 12px rgba(0, 245, 160, 0.4);
   --shadow-accent: 0 4px 12px rgba(255, 125, 0, 0.25);
   --shadow-danger: 0 4px 12px rgba(255, 7, 58, 0.25);
+  --shadow-card: 0 4px 12px rgba(142, 45, 226, 0.9);
 }
 
 /* Theme Color Variables - For Light Mode Implementation */
@@ -206,6 +207,115 @@
   border: 1px solid rgba(255, 125, 0, 0.3);
 }
 
+/* Category-specific colors for prompt templates */
+.category-marketing {
+  background-color: rgba(255, 7, 58, 0.15);
+  color: #FF5F7E;
+  border: 1px solid rgba(255, 7, 58, 0.3);
+}
+
+.category-development {
+  background-color: rgba(201, 153, 255, 0.15);
+  color: rgb(201, 153, 255);
+  border: 1px solid rgba(201, 153, 255, 0.3);
+}
+
+.category-communication {
+  background-color: rgba(0, 176, 255, 0.15);
+  color: #00B0FF;
+  border: 1px solid rgba(0, 176, 255, 0.3);
+}
+
+.category-creative {
+  background-color: rgba(255, 125, 0, 0.15);
+  color: #FF7D00;
+  border: 1px solid rgba(255, 125, 0, 0.3);
+}
+
+.category-analytics {
+  background-color: rgba(0, 188, 212, 0.15);
+  color: #00BCD4;
+  border: 1px solid rgba(0, 188, 212, 0.3);
+}
+
+.category-productivity {
+  background-color: rgba(76, 175, 80, 0.15);
+  color: #4CAF50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.category-social-media {
+  background-color: rgba(233, 30, 99, 0.15);
+  color: #E91E63;
+  border: 1px solid rgba(233, 30, 99, 0.3);
+}
+
+.category-education {
+  background-color: rgba(92, 246, 161, 0.15);
+  color: rgb(92, 246, 161);
+  border: 1px solid rgba(92, 246, 161, 0.5);
+}
+
+.category-problem-solving {
+  background-color: rgba(255, 235, 59, 0.15);
+  color: #FFEB3B;
+  border: 1px solid rgba(255, 235, 59, 0.3);
+}
+
+.category-cooking {
+  background-color: rgba(255, 152, 0, 0.15);
+  color: #FF9800;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.category-business {
+  background-color: rgba(0, 188, 212, 0.15);
+  color: #00BCD4;
+  border: 1px solid rgba(0, 188, 212, 0.3);
+}
+
+.category-career {
+  background-color: rgba(255, 193, 7, 0.15);
+  color: #FFC107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.category-language {
+  background-color: rgba(0, 229, 255, 0.15);
+  color: #00E5FF;
+  border: 1px solid rgba(0, 229, 255, 0.3);
+}
+
+.category-health-fitness {
+  background-color: rgba(139, 195, 74, 0.15);
+  color: #8BC34A;
+  border: 1px solid rgba(139, 195, 74, 0.3);
+}
+
+.category-travel {
+  background-color: rgba(3, 169, 244, 0.15);
+  color: #03A9F4;
+  border: 1px solid rgba(3, 169, 244, 0.3);
+}
+
+.category-finance {
+  background-color: rgba(94, 220, 101, 0.15);
+  color: rgb(94, 220, 101);
+  border: 1px solid rgba(94, 220, 101, 0.3);
+}
+
+.category-e-commerce {
+  background-color: rgba(219, 54, 248, 0.15);
+  color: rgb(219, 54, 248);
+  border: 1px solid rgba(219, 54, 248, 0.3);
+}
+
+.category-event-planning {
+  background-color: rgba(255, 87, 34, 0.15);
+  color: #FF5722;
+  border: 1px solid rgba(255, 87, 34, 0.3);
+}
+
 /* Glass Effect */
 .glass {
   background: rgba(22, 33, 62, 0.5);
@@ -225,11 +335,20 @@
 /* Complementary Gradient for Title Text */
 .text-title-gradient {
   background: var(--title-gradient);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  place-self: center;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-fill-color: transparent;
+  font:800 clamp(2em, 10vw, 10em) 'Montserrat Alternates', sans-serif;
+  color: transparent;
 }
+
+.text-title-gradient:hover {
+  background-position: -100% 0;
+}
+
 
 /* Apply Inter font globally, ensure configured in index.html */
 body {
@@ -324,8 +443,8 @@ body {
 
 .flip-card-back {
   background-color: var(--dark-surface);
-  border: 3px solid var(--light-border);
-  box-shadow: 4px 4px 0px var(--light-border);
+  border: 2px solid var(--light-border);
+  /* box-shadow: 4px 4px 0px var(--shadow-secondary); */
   transform: rotateY(180deg);
   padding: 1rem;
   display: flex;
@@ -339,19 +458,19 @@ body {
 }
 
 .flip-card.flipped .flip-card-front .text-center {
-  transform: translateZ(150px) rotateY(-20deg);
+  transform: translateZ(70px) rotateY(-20deg);
 }
 
 /* Parallax effect for back card elements */
 .flip-card-back > * {
-  transition: transform 0.2s ease-in-out;
+  transition: transform 0.1s ease-in-out;
   transform-style: preserve-3d;
   opacity: 0;
 }
 
 .flip-card.flipped .flip-card-back > * {
   opacity: 1;
-  transform: translateZ(40px);
+  transform: translateZ(30px);
 }
 
 .flip-card.flipped .flip-card-back > *:nth-child(1) {
@@ -377,7 +496,7 @@ body {
 /* Additional depth effect */
 .flip-card:hover {
   transform: translateY(-5px);
-  transition: transform 0.5s ease-out;
+  transition: transform 0.2s ease-out;
 }
 
 

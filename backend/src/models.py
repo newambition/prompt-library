@@ -12,6 +12,20 @@ from .database import Base # Import Base from database.py
 
 # --- SQLAlchemy Models ---
 
+class User(Base):
+    __tablename__ = 'userdb'
+
+    user_id = Column(Integer, primary_key=True, index=True)
+    auth0_id = Column(String(255), unique=True, nullable=False) # Auth0 user id
+    email = Column(String(255), unique=False, nullable=True) # Auth0 email - make nullable and non-unique
+    username = Column(String(100), unique=False, nullable=True) # Auth0 username - make non-unique
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    tier = Column(String(100), nullable=False) # e.g., "free", "pro"
+    subscription_status = Column(String(100), nullable=False) # e.g., "active", "cancelled"
+    subscription_start_date = Column(DateTime(timezone=True), nullable=True) # e.g., "2025-01-01 00:00:00"
+    subscription_end_date = Column(DateTime(timezone=True), nullable=True) # e.g., "2025-01-01 00:00:00"
+    stripe_customer_id = Column(String(255), nullable=True) # Stripe customer id
+
 class PromptDB(Base):
     """SQLAlchemy model for the 'prompts' table."""
     __tablename__ = "prompts"
@@ -19,7 +33,7 @@ class PromptDB(Base):
     # Use Mapped for modern SQLAlchemy type hinting
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     prompt_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False) # e.g., "prompt1"
-    user_id: Mapped[str] = mapped_column(String, index=True, nullable=False) # Auth0 sub or Neon Auth user id
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("userdb.user_id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String, index=True, nullable=False)
     # Store tags as a JSON list for simplicity with SQLite/Postgres
     # For complex tag querying, a separate Tag table and many-to-many relationship is better
@@ -46,7 +60,7 @@ class UserApiKeyDB(Base):
     __tablename__ = "user_api_keys"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[str] = mapped_column(String, index=True, nullable=False) # From Auth0 sub
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("userdb.user_id", ondelete="CASCADE"), nullable=False)
     llm_provider: Mapped[str] = mapped_column(String, nullable=False) # e.g., "gemini", "openai"
     encrypted_api_key: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     masked_api_key: Mapped[str] = mapped_column(String, nullable=False) # e.g., "sk-...xxxx"
@@ -62,7 +76,7 @@ class PromptVersionDB(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     prompt_id = Column(Integer, ForeignKey("prompts.id"))
-    user_id = Column(String, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("userdb.user_id", ondelete="CASCADE"), nullable=False)
     version_number = Column(Integer, nullable=False)
     version_id_str = Column(String, index=True, nullable=False)
     text = Column(Text, nullable=False)

@@ -11,10 +11,10 @@ import hashlib
 
 # --- Helper Functions ---
 
-def get_next_prompt_id_db(db: Session, user_id: str) -> str:
+def get_next_prompt_id_db(db: Session, user_id: int) -> str:
     """Generates the next sequential prompt ID based on DB data for a specific user."""
     # Create a short hash of user_id to make prompt IDs user-specific
-    user_hash = hashlib.md5(user_id.encode()).hexdigest()[:8]
+    user_hash = hashlib.md5(str(user_id).encode()).hexdigest()[:8]
     
     last_prompt = db.query(models.PromptDB).filter(models.PromptDB.user_id == user_id).order_by(models.PromptDB.id.desc()).first()
     if not last_prompt or not last_prompt.prompt_id.startswith(f"prompt_{user_hash}_"):
@@ -87,14 +87,14 @@ def _map_prompt_db_to_schema(prompt_db: models.PromptDB) -> schemas.Prompt:
 
 # --- Prompt CRUD ---
 
-def get_prompt_by_prompt_id(db: Session, prompt_id: str, user_id: str) -> Optional[models.PromptDB]:
+def get_prompt_by_prompt_id(db: Session, prompt_id: str, user_id: int) -> Optional[models.PromptDB]:
     """Retrieves a prompt by its string ID for a specific user, with versions eagerly loaded."""
     return db.query(models.PromptDB).\
         options(joinedload(models.PromptDB.versions)).\
         filter(models.PromptDB.prompt_id == prompt_id, models.PromptDB.user_id == user_id).\
         first()
 
-def get_prompts(db: Session, user_id: str, skip: int = 0, limit: int = 100) -> List[models.PromptDB]:
+def get_prompts(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.PromptDB]:
     """Retrieves a list of prompts for a specific user with pagination, with versions eagerly loaded."""
     return db.query(models.PromptDB).\
         options(joinedload(models.PromptDB.versions)).\
@@ -104,7 +104,7 @@ def get_prompts(db: Session, user_id: str, skip: int = 0, limit: int = 100) -> L
         limit(limit).\
         all()
 
-def create_db_prompt(db: Session, prompt_data: schemas.PromptCreate, user_id: str) -> models.PromptDB:
+def create_db_prompt(db: Session, prompt_data: schemas.PromptCreate, user_id: int) -> models.PromptDB:
     """Creates a new prompt record with an initial version and tags for a specific user."""
     db_prompt_id = get_next_prompt_id_db(db, user_id)
     initial_version_id_str = "v1"
@@ -137,7 +137,7 @@ def create_db_prompt(db: Session, prompt_data: schemas.PromptCreate, user_id: st
     db.refresh(db_prompt)
     return db_prompt
 
-def delete_db_prompt(db: Session, prompt_id: str, user_id: str) -> bool:
+def delete_db_prompt(db: Session, prompt_id: str, user_id: int) -> bool:
     db_prompt = get_prompt_by_prompt_id(db, prompt_id, user_id)
     if db_prompt:
         db.delete(db_prompt)
@@ -145,7 +145,7 @@ def delete_db_prompt(db: Session, prompt_id: str, user_id: str) -> bool:
         return True
     return False
 
-def update_db_prompt(db: Session, prompt_id: str, user_id: str, update_data: schemas.PromptUpdate) -> Optional[models.PromptDB]:
+def update_db_prompt(db: Session, prompt_id: str, user_id: int, update_data: schemas.PromptUpdate) -> Optional[models.PromptDB]:
     db_prompt = get_prompt_by_prompt_id(db, prompt_id, user_id)
     if not db_prompt:
         return None
@@ -167,7 +167,7 @@ def update_db_prompt(db: Session, prompt_id: str, user_id: str, update_data: sch
 
 # --- Version CRUD ---
 
-def create_db_version(db: Session, prompt_id: str, user_id: str, version_data: schemas.VersionCreate) -> Optional[models.PromptVersionDB]:
+def create_db_version(db: Session, prompt_id: str, user_id: int, version_data: schemas.VersionCreate) -> Optional[models.PromptVersionDB]:
     db_prompt = get_prompt_by_prompt_id(db, prompt_id, user_id)
     if not db_prompt:
         return None
@@ -200,7 +200,7 @@ def create_db_version(db: Session, prompt_id: str, user_id: str, version_data: s
     db.refresh(db_prompt)
     return db_version
 
-def update_db_version_notes(db: Session, prompt_id: str, user_id: str, version_id_str: str, notes: Optional[str]) -> Optional[models.PromptVersionDB]:
+def update_db_version_notes(db: Session, prompt_id: str, user_id: int, version_id_str: str, notes: Optional[str]) -> Optional[models.PromptVersionDB]:
     db_prompt = get_prompt_by_prompt_id(db, prompt_id, user_id)
     if not db_prompt:
         return None
@@ -215,7 +215,7 @@ def update_db_version_notes(db: Session, prompt_id: str, user_id: str, version_i
 
 # --- Tag CRUD ---
 
-def add_db_tag(db: Session, prompt_id: str, user_id: str, tag_create_data: schemas.TagCreate) -> Optional[models.PromptDB]:
+def add_db_tag(db: Session, prompt_id: str, user_id: int, tag_create_data: schemas.TagCreate) -> Optional[models.PromptDB]:
     """Adds a tag (name and color) to a prompt for a specific user. If tag name exists, updates color."""
     db_prompt = get_prompt_by_prompt_id(db, prompt_id, user_id)
     if not db_prompt:
@@ -239,7 +239,7 @@ def add_db_tag(db: Session, prompt_id: str, user_id: str, tag_create_data: schem
     db.refresh(db_prompt)
     return db_prompt
 
-def remove_db_tag(db: Session, prompt_id: str, user_id: str, tag_name: str) -> Optional[models.PromptDB]:
+def remove_db_tag(db: Session, prompt_id: str, user_id: int, tag_name: str) -> Optional[models.PromptDB]:
     """Removes a tag from a prompt's tag list by its name for a specific user."""
     db_prompt = get_prompt_by_prompt_id(db, prompt_id, user_id)
     if not db_prompt:

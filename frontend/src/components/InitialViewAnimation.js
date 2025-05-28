@@ -105,12 +105,13 @@ const InitialViewAnimation = () => {
       opacity: 1,
       y: 0,
       transition: {
-        delay: 0.4, // Delay slightly after container fades in
-        duration: 5,
+        delay: 0.8, // Delay slightly after container fades in
+        duration: 10,
         ease: "easeInOut",
       },
     },
   };
+  
 
   const taglineVariants = {
     hidden: { opacity: 0, y: 0 },
@@ -142,7 +143,7 @@ const InitialViewAnimation = () => {
       >
         <motion.h1
           variants={titleVariants}
-          className="antialiased text-5xl sm:text-7xl md:text-8xl saturate-150 contrast-150 text-title-gradient tracking-tighter mb-2 font-title"
+          className="text-5xl sm:text-7xl md:text-8xl text-title-gradient saturate-150 contrast-150 brightness-150 tracking-tighter mb-2"
         >
           PromptLi
         </motion.h1>

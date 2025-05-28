@@ -26,6 +26,18 @@ from .crud_prompts import (
     remove_db_tag
 )
 
+from .crud_users import (
+    get_user_by_auth0_id,
+    get_user_by_user_id,
+    create_user,
+    update_user_subscription,
+    get_user_by_stripe_customer_id,
+    get_user_tier_and_status,
+    get_or_create_user_from_auth0,
+    count_user_prompts,
+    count_prompt_versions
+)
+
 __all__ = [
     # API Key CRUD functions
     "create_user_api_key",
@@ -50,4 +62,15 @@ __all__ = [
     "update_db_version_notes",
     "add_db_tag",
     "remove_db_tag",
+
+    # User CRUD functions
+    "get_user_by_auth0_id",
+    "get_user_by_user_id",
+    "create_user",
+    "update_user_subscription",
+    "get_user_by_stripe_customer_id",
+    "get_user_tier_and_status",
+    "get_or_create_user_from_auth0",
+    "count_user_prompts",
+    "count_prompt_versions",
 ] 
