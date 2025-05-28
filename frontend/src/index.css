@@ -245,28 +245,6 @@ body {
 }
 
 
-/* Custom scrollbar for prompt list (applied via className in Sidebar) */
-.prompt-list::-webkit-scrollbar {
-  display: none;
-  width: 6px;
-}
-.prompt-list::-webkit-scrollbar-track {
-  display: none;
-  background: theme('colors.gray.100'); /* Consider using Tailwind colors e.g., theme('colors.gray.100') */
-  border-radius: 10px;
-}
-.prompt-list::-webkit-scrollbar-thumb {
-  display: none;
-  background: theme('colors.slate.300'); /* slate-300 */
-  border-radius: 10px;
-}
-.prompt-list::-webkit-scrollbar-thumb:hover {
-  display: none;
-  background: theme('colors.slate.400'); /* slate-400 */
-}
-.new-prompt-modal::-webkit-scrollbar {
-  display: none;
-}
 
 /* Define custom component styles using @layer components if needed, */
 /* although Tailwind classes directly in JSX are often preferred. */
@@ -289,32 +267,6 @@ body {
   -ms-overflow-style: none !important; /* IE and Edge */
 }
 
-/* Override for scrollable prompt boxes */
-.scrollable-prompt-box::-webkit-scrollbar {
-  display: block !important;
-  width: 8px !important;
-  background: rgba(255, 255, 255, 0.1) !important;
-}
-
-.scrollable-prompt-box::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border-radius: 4px !important;
-}
-
-.scrollable-prompt-box::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.4) !important;
-  border-radius: 4px !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-}
-
-.scrollable-prompt-box::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.6) !important;
-}
-
-.scrollable-prompt-box {
-  scrollbar-width: thin !important; /* Firefox */
-  scrollbar-color: rgba(255, 255, 255, 0.4) rgba(255, 255, 255, 0.05) !important;
-}
 
 /* Line clamp utility */
 .line-clamp-3 {
@@ -365,6 +317,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 20px;
   padding: 2rem;
   z-index: 4;
 }

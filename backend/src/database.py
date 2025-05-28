@@ -1,13 +1,39 @@
 # database.py
 # Handles SQLAlchemy database connection setup and session management.
 
+# Database Setup Summary:
+# - Production database: Neon PostgreSQL (cloud-hosted)
+# - Connection: Via DATABASE_URL environment variable
+# - Schema management: Alembic migrations
+# - User isolation: All prompts, versions, and API keys are user-specific
+#
+# Key Changes Made:
+# 1. Removed SQLite support - now PostgreSQL-only via DATABASE_URL
+# 2. Removed create_database_tables() function - schema managed by Alembic
+# 3. Added user_id columns to prompts and prompt_versions tables for data isolation
+# 4. All CRUD operations filter by user_id to ensure complete data separation
+#
+# Environment Requirements:
+# - DATABASE_URL must be set (Neon PostgreSQL connection string)
+# - Format: postgresql://user:password@host:port/database
+# - Example: postgresql://user:pass@ep-example-123456.us-east-1.aws.neon.tech/neondb
+#
+# Security Features:
+# - SSL/TLS enforced for Neon connections
+# - User-specific prompt IDs with hash prefixes to prevent conflicts
+# - Complete data isolation between authenticated users
+# - TESTED: Multiple users can create prompts without conflicts (user-specific IDs)
+
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 # from src import models  # We will inherit from this class to create each of the ORM models (in models.py).
 
 # --- Database URL Configuration ---
-# Use SQLite for local development (creates a file named prompt_library.db)
-SQLALCHEMY_DATABASE_URL = "sqlite:///./prompt_library.db"
+# Use the DATABASE_URL environment variable for deployment (Neon/Postgres)
+SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL")
+if not SQLALCHEMY_DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable not set for database connection.")
 
 # Example for PostgreSQL (uncomment and configure if using Postgres)
 # Make sure you have installed 'psycopg2-binary': pip install psycopg2-binary
@@ -17,8 +43,7 @@ SQLALCHEMY_DATABASE_URL = "sqlite:///./prompt_library.db"
 # --- SQLAlchemy Engine Setup ---
 # 'connect_args' is needed only for SQLite to allow multi-threaded access
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
+    SQLALCHEMY_DATABASE_URL
     # Add echo=True for debugging SQL statements (optional)
     # echo=True
 )

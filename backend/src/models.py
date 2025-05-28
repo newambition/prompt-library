@@ -19,6 +19,7 @@ class PromptDB(Base):
     # Use Mapped for modern SQLAlchemy type hinting
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     prompt_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False) # e.g., "prompt1"
+    user_id: Mapped[str] = mapped_column(String, index=True, nullable=False) # Auth0 sub or Neon Auth user id
     title: Mapped[str] = mapped_column(String, index=True, nullable=False)
     # Store tags as a JSON list for simplicity with SQLite/Postgres
     # For complex tag querying, a separate Tag table and many-to-many relationship is better
@@ -27,11 +28,17 @@ class PromptDB(Base):
 
     # Relationship to versions (one-to-many)
     # 'cascade="all, delete-orphan"' means versions are deleted when the prompt is deleted
-    versions: Mapped[List["PromptVersionDB"]] = relationship("PromptVersionDB", back_populates="prompt", cascade="all, delete-orphan")
+    versions: Mapped[List["PromptVersionDB"]] = relationship(
+        "PromptVersionDB",
+        back_populates="prompt",
+        cascade="all, delete-orphan",
+        foreign_keys="[PromptVersionDB.prompt_id]"
+    )
 
     # Add an index for searching by title
     __table_args__ = (
         Index('ix_prompt_title', 'title'),
+        Index('ix_prompt_user_id', 'user_id'),
         {"extend_existing": True}
     )
 
@@ -55,6 +62,7 @@ class PromptVersionDB(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     prompt_id = Column(Integer, ForeignKey("prompts.id"))
+    user_id = Column(String, index=True, nullable=False)
     version_number = Column(Integer, nullable=False)
     version_id_str = Column(String, index=True, nullable=False)
     text = Column(Text, nullable=False)
@@ -64,4 +72,8 @@ class PromptVersionDB(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    prompt = relationship("PromptDB", back_populates="versions")
+    prompt = relationship(
+        "PromptDB",
+        back_populates="versions",
+        foreign_keys="[PromptVersionDB.prompt_id]"
+    )

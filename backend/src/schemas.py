@@ -70,7 +70,6 @@ class PlaygroundRequest(BaseModel):
     """Request model for the playground endpoint."""
     prompt_text: str
     llm_provider: str = Field(..., description="The LLM provider to use for this test (e.g., 'gemini', 'openai')")
-    # In the future, you might add user_api_key here if backend is to use it
     # user_api_key: Optional[str] = None
     model_id: str = Field(..., description="The specific model ID to use for the selected provider (e.g., 'gemini-1.5-flash', 'gpt-4')")
 

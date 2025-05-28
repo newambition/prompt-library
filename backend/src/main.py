@@ -38,27 +38,38 @@ app.include_router(user_settings_router)
 @app.get("/prompts", response_model=schemas.PromptListResponse, tags=["Prompts"])
 async def read_prompts(
     skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
-    current_user: Dict = Depends(verify_token) # Protect endpoint
+    current_user: Dict = Depends(verify_token)
 ):
-    # print(f"Current user from token: {current_user.get('sub')}") # Example: access user ID
-    db_prompts = crud.get_prompts(db, skip=skip, limit=limit)
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found in token")
+    
+    db_prompts = crud.get_prompts(db, user_id=user_id, skip=skip, limit=limit)
     schema_prompts = [crud._map_prompt_db_to_schema(p) for p in db_prompts]
     return schemas.PromptListResponse(prompts=schema_prompts)
 
 @app.post("/prompts", response_model=schemas.Prompt, status_code=status.HTTP_201_CREATED, tags=["Prompts"])
 async def create_prompt(
-    prompt_data: schemas.PromptCreate, db: Session = Depends(get_db),
-    current_user: Dict = Depends(verify_token) # Protect endpoint
+    prompt: schemas.PromptCreate, db: Session = Depends(get_db),
+    current_user: Dict = Depends(verify_token)
 ):
-    db_prompt = crud.create_db_prompt(db=db, prompt_data=prompt_data)
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found in token")
+    
+    db_prompt = crud.create_db_prompt(db=db, prompt_data=prompt, user_id=user_id)
     return crud._map_prompt_db_to_schema(db_prompt)
 
 @app.get("/prompts/{prompt_id}", response_model=schemas.Prompt, tags=["Prompts"])
 async def read_prompt(
     prompt_id: str, db: Session = Depends(get_db),
-    current_user: Dict = Depends(verify_token) # Protect endpoint
+    current_user: Dict = Depends(verify_token)
 ):
-    db_prompt = crud.get_prompt_by_prompt_id(db, prompt_id=prompt_id)
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found in token")
+    
+    db_prompt = crud.get_prompt_by_prompt_id(db, prompt_id=prompt_id, user_id=user_id)
     if db_prompt is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prompt not found")
     return crud._map_prompt_db_to_schema(db_prompt)
@@ -66,80 +77,104 @@ async def read_prompt(
 @app.delete("/prompts/{prompt_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Prompts"])
 async def delete_prompt(
     prompt_id: str, db: Session = Depends(get_db),
-    current_user: Dict = Depends(verify_token) # Protect endpoint
+    current_user: Dict = Depends(verify_token)
 ):
-    deleted = crud.delete_db_prompt(db, prompt_id=prompt_id)
-    if not deleted:
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found in token")
+    
+    success = crud.delete_db_prompt(db, prompt_id=prompt_id, user_id=user_id)
+    if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prompt not found")
-    return
 
 @app.put("/prompts/{prompt_id}", response_model=schemas.Prompt, tags=["Prompts"])
 async def update_prompt(
-    prompt_id: str, update_data: schemas.PromptUpdate, db: Session = Depends(get_db),
-    current_user: Dict = Depends(verify_token) # Protect endpoint
+    prompt_id: str, prompt_update: schemas.PromptUpdate, db: Session = Depends(get_db),
+    current_user: Dict = Depends(verify_token)
 ):
-    db_prompt = crud.update_db_prompt(db, prompt_id=prompt_id, update_data=update_data)
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found in token")
+    
+    db_prompt = crud.update_db_prompt(db, prompt_id=prompt_id, user_id=user_id, update_data=prompt_update)
     if db_prompt is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prompt not found")
     return crud._map_prompt_db_to_schema(db_prompt)
 
 # -- Version Endpoints --
 @app.post("/prompts/{prompt_id}/versions", response_model=schemas.Version, status_code=status.HTTP_201_CREATED, tags=["Versions"])
-async def create_version_for_prompt(
-    prompt_id: str, version_data: schemas.VersionCreate, db: Session = Depends(get_db),
-    current_user: Dict = Depends(verify_token) # Protect endpoint
+async def create_version(
+    prompt_id: str, version: schemas.VersionCreate, db: Session = Depends(get_db),
+    current_user: Dict = Depends(verify_token)
 ):
-    db_version = crud.create_db_version(db=db, prompt_id=prompt_id, version_data=version_data)
-    if db_version is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Prompt '{prompt_id}' not found")
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found in token")
     
-    # Manually map PromptVersionDB to schemas.Version, including new fields
+    db_version = crud.create_db_version(db=db, prompt_id=prompt_id, user_id=user_id, version_data=version)
+    if db_version is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prompt not found")
+    
     return schemas.Version(
         id=db_version.id,
-        version_id=db_version.version_id_str, # Use version_id_str
+        version_id=db_version.version_id_str,
         text=db_version.text,
         notes=db_version.notes,
-        date=db_version.created_at.isoformat() if db_version.created_at else crud.get_current_date_str(), # Use created_at
+        date=db_version.created_at.isoformat() if db_version.created_at else crud.get_current_date_str(),
         llm_provider=db_version.llm_provider,
         model_id_used=db_version.model_id_used
     )
 
-@app.put("/prompts/{prompt_id}/versions/{version_id_str}/notes", response_model=schemas.Version, tags=["Versions"])
+@app.put("/prompts/{prompt_id}/versions/{version_id}/notes", response_model=schemas.Version, tags=["Versions"])
 async def update_version_notes(
-    prompt_id: str, version_id_str: str, note_update: schemas.NoteUpdate, db: Session = Depends(get_db),
-    current_user: Dict = Depends(verify_token) # Protect endpoint
+    prompt_id: str, version_id: str, note_update: schemas.NoteUpdate, db: Session = Depends(get_db),
+    current_user: Dict = Depends(verify_token)
 ):
-    db_version = crud.update_db_version_notes(db=db, prompt_id=prompt_id, version_id_str=version_id_str, notes=note_update.notes)
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found in token")
+    
+    db_version = crud.update_db_version_notes(db, prompt_id=prompt_id, user_id=user_id, version_id_str=version_id, notes=note_update.notes)
     if db_version is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Prompt '{prompt_id}' or Version '{version_id_str}' not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prompt or version not found")
+    
     return schemas.Version(
-        id=db_version.id, version_id=db_version.version_id, text=db_version.text,
-        notes=db_version.notes, date=db_version.date
+        id=db_version.id,
+        version_id=db_version.version_id_str,
+        text=db_version.text,
+        notes=db_version.notes,
+        date=db_version.created_at.isoformat() if db_version.created_at else crud.get_current_date_str(),
+        llm_provider=db_version.llm_provider,
+        model_id_used=db_version.model_id_used
     )
 
 # -- Tag Endpoints --
 @app.post("/prompts/{prompt_id}/tags", response_model=schemas.Prompt, tags=["Tags"])
-async def add_tag_to_prompt(
-    prompt_id: str, tag_data: schemas.SingleTagAdd = Body(...), db: Session = Depends(get_db),
-    current_user: Dict = Depends(verify_token) # Protect endpoint
+async def add_tag(
+    prompt_id: str, tag: schemas.SingleTagAdd, db: Session = Depends(get_db),
+    current_user: Dict = Depends(verify_token)
 ):
-    if not tag_data.name.strip():
-         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tag name cannot be empty")
-    if not tag_data.color.strip():
-        tag_data.color = "bg-gray-200"
-    db_prompt = crud.add_db_tag(db=db, prompt_id=prompt_id, tag_create_data=tag_data)
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found in token")
+    
+    db_prompt = crud.add_db_tag(db, prompt_id=prompt_id, user_id=user_id, tag_create_data=tag)
     if db_prompt is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prompt not found")
     return crud._map_prompt_db_to_schema(db_prompt)
 
 @app.delete("/prompts/{prompt_id}/tags/{tag_name}", response_model=schemas.Prompt, tags=["Tags"])
-async def remove_tag_from_prompt(
+async def remove_tag(
     prompt_id: str, tag_name: str, db: Session = Depends(get_db),
-    current_user: Dict = Depends(verify_token) # Protect endpoint
+    current_user: Dict = Depends(verify_token)
 ):
-    db_prompt = crud.remove_db_tag(db=db, prompt_id=prompt_id, tag_name=tag_name)
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found in token")
+    
+    db_prompt = crud.remove_db_tag(db, prompt_id=prompt_id, user_id=user_id, tag_name=tag_name)
     if db_prompt is None:
-         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prompt not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prompt not found")
     return crud._map_prompt_db_to_schema(db_prompt)
 
 # --- Playground Endpoint ---

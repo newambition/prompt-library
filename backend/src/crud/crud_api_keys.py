@@ -4,7 +4,6 @@ import datetime
 
 from src.models import UserApiKeyDB
 from src.config import settings
-# from src.schemas import UserApiKeyCreate, UserApiKey # Schemas will be used in the router layer
 
 def _get_fernet_instance():
     if not settings.FERNET_KEY:
@@ -37,8 +36,6 @@ def create_user_api_key(db: Session, user_id: str, llm_provider: str, api_key_pl
     db.commit()
     db.refresh(db_api_key)
     return db_api_key
-
-# Placeholder for other CRUD functions to be implemented based on deployment_plan.md
 
 def get_user_api_keys(db: Session, user_id: str) -> list[UserApiKeyDB]:
     """

@@ -138,9 +138,9 @@ function PromptTemplates({ onUseTemplate, selectedCategory, onCategoryChange }) 
                         {template.description}
                       </p>
                       
-                      <div className="bg-card border border-light rounded-xl p-3 mb-3 flex-1 overflow-y-auto">
+                      <div className="bg-card border border-light rounded-xl p-3 mb-3 flex-1 max-h-screen overflow-y-auto">
                         <pre className="text-light text-xs whitespace-pre-wrap break-words">
-                          {template.prompt.length > 150 
+                          {template.prompt.length > 150
                             ? `${template.prompt.substring(0, 150)}...` 
                             : template.prompt}
                         </pre>
@@ -190,9 +190,9 @@ function PromptTemplates({ onUseTemplate, selectedCategory, onCategoryChange }) 
                         {template.description}
                       </p>
                       
-                      <div className="bg-card border border-light rounded-xl p-3 mb-3 flex-1 overflow-y-auto">
+                      <div className="bg-card border border-light rounded-xl p-3 mb-3 flex-1 flex-grow overflow-y-auto">
                         <pre className="text-light text-xs whitespace-pre-wrap break-words">
-                          {template.prompt.length > 150 
+                          {template.prompt.length > 150
                             ? `${template.prompt.substring(0, 150)}...` 
                             : template.prompt}
                         </pre>
@@ -322,26 +322,11 @@ function PromptTemplates({ onUseTemplate, selectedCategory, onCategoryChange }) 
                   </p>
                   
                   <div 
-                    className="bg-card border border-light rounded-xl p-3 mb-3 max-h-56 overflow-y-scroll scrollable-prompt-box"
-                    onWheel={(e) => {
+                    className="bg-card border border-light rounded-xl p-3 mb-3 max-h-56 overflow-y-auto"
+                    onWheel={e => {
                       e.preventDefault();
                       e.stopPropagation();
-                      e.nativeEvent.stopImmediatePropagation();
-                      
-                      const element = e.currentTarget;
-                      const canScrollDown = element.scrollTop < element.scrollHeight - element.clientHeight;
-                      const canScrollUp = element.scrollTop > 0;
-                      
-                      if ((e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp)) {
-                        element.scrollTop += e.deltaY * 0.5;
-                      }
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.pointerEvents = 'auto';
-                    }}
-                    style={{ 
-                      pointerEvents: 'auto',
-                      isolation: 'isolate'
+                      e.currentTarget.scrollTop += e.deltaY;
                     }}
                   >
                     <pre className="text-light text-xs text-left whitespace-pre-wrap break-words">

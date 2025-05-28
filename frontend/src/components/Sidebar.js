@@ -50,14 +50,15 @@ function Sidebar({
 
       {/* Sidebar */}
       <aside className={`
-        w-1/4 md:w-1/5 bg-card border-light-right flex flex-col overflow-hidden h-screen text-light
-        sm:relative sm:translate-x-0 sm:block
+        w-1/4 md:w-1/5 bg-card border-light-right flex flex-col h-screen text-light
+        sm:relative sm:translate-x-0 
         ${isMobileMenuOpen 
           ? 'fixed top-0 left-0 z-50 w-4/5 transform translate-x-0 transition-transform duration-300 ease-in-out' 
           : 'fixed top-0 left-0 z-50 w-4/5 transform -translate-x-full transition-transform duration-300 ease-in-out sm:transform-none'
         }
-        sm:w-1/4 md:w-1/5
+        sm:w-1/4 md:w-1/5 
       `}>
+        {/* Header Section: This part remains at the top */}
         <div className="p-4 border-light-bottom mb-3">
           <div className="flex flex-col mb-5">
             <div className="flex justify-between items-center">
@@ -118,7 +119,8 @@ function Sidebar({
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto prompt-list p-2 space-y-3 sm:flex-grow">
+        {/* Scrollable Prompt List Section */}
+        <nav className="flex-1 overflow-y-auto min-h-0 prompt-list p-2 space-y-3">
           {prompts.map((prompt) => {
             const isSelected = prompt.id === selectedPromptId;
             return (
@@ -161,7 +163,9 @@ function Sidebar({
               <p className="p-3 text-sm text-light-secondary italic">Log in to see and save your prompts.</p>
           )}
         </nav>
-        <div className="p-4 flex gap-2 items-center border-light-top sm:mt-auto">
+
+        {/* Footer Section: This part remains at the bottom */}
+        <div className="p-1 flex gap-2 items-center border-light-top bg-card">
           {isAuthenticated ? (
             <button
               onClick={onLogout}
