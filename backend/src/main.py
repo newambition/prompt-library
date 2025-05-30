@@ -53,6 +53,41 @@ async def get_user_tier_info(
     
     return tier_utils.check_user_tier_info(db, user.user_id)
 
+# -- User Preferences Endpoint --
+@app.get("/user/profile", response_model=schemas.User, tags=["User"])
+async def get_user_profile(
+    db: Session = Depends(get_db),
+    current_user: Dict = Depends(verify_token)
+):
+    """Get the user's profile data including tier and preferences."""
+    auth0_id = current_user.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found in token")
+    
+    # Get or create user in our database
+    user = crud_users.get_or_create_user_from_auth0(db, current_user)
+    return user
+
+@app.put("/user/paywall-modal-seen", status_code=status.HTTP_204_NO_CONTENT, tags=["User"])
+async def mark_paywall_modal_seen(
+    db: Session = Depends(get_db),
+    current_user: Dict = Depends(verify_token)
+):
+    """Mark that the user has seen the paywall/tier selection modal."""
+    auth0_id = current_user.get("sub")
+    if not auth0_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found in token")
+    
+    # Get or create user in our database
+    user = crud_users.get_or_create_user_from_auth0(db, current_user)
+    
+    # Update the user's has_seen_paywall_modal flag
+    success = crud_users.update_user_paywall_modal_seen(db, user.user_id, True)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update user preference")
+    
+    # Return 204 No Content on success
+
 # -- Prompt Endpoints --
 @app.get("/prompts", response_model=schemas.PromptListResponse, tags=["Prompts"])
 async def read_prompts(

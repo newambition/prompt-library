@@ -28,6 +28,9 @@ import { PROMPT_TEMPLATES } from '../constants/promptTemplates';
  * @param {boolean} props.apiKeysLoading - Loading state for API keys.
  * @param {boolean} props.isDetailsViewBusy - Indicates whether the DetailsView is busy.
  * @param {Function} props.onUseTemplate - Callback function when a template is used.
+ * @param {object} props.user - The user object.
+ * @param {Function} props.onShowTierModal - Callback function to show the tier modal.
+ * @param {object} props.userProfile - The user profile object.
  * 
  */
 function MainContent({
@@ -49,7 +52,10 @@ function MainContent({
   userApiKeys,
   apiKeysLoading,
   isDetailsViewBusy,
-  onUseTemplate
+  onUseTemplate,
+  user,
+  userProfile,
+  onShowTierModal
 }) {
   const buttonsDisabled = !selectedPrompt || !selectedVersionId;
 
@@ -62,6 +68,9 @@ function MainContent({
 
   // Get unique categories for templates
   const categories = ['All', ...new Set(PROMPT_TEMPLATES.map(template => template.category))];
+
+  // Get user tier from backend user profile instead of Auth0 user object
+  const userTier = userProfile?.tier || 'free'; // Default to free (lowercase) if not available
 
   // Keep titleInput in sync with selectedPrompt
   React.useEffect(() => {
@@ -183,6 +192,27 @@ function MainContent({
             ) : (
               /* Details and Playground buttons */
               <>
+                {/* Tier Button - Desktop Only */}
+                {isAuthenticated && (
+                  <div className="hidden sm:block mr-4">
+                    {userTier === 'free' && (
+                      <button
+                        onClick={onShowTierModal}
+                        className="font-medium py-2 px-4 rounded-xl transition duration-150 ease-in-out text-xs shadow-sm bg-gradient-to-r from-orange-500/15 to-accent/15 border border-accent/25 text-accent hover:from-orange-500/25 hover:to-accent/25 hover:border-accent/40"
+                      >
+                        Upgrade to Pro
+                      </button>
+                    )}
+                    {userTier === 'pro' && (
+                      <button
+                        className="font-medium btn-pro"
+                      >
+                        ✨ Pro
+                      </button>
+                    )}
+                  </div>
+                )}
+                
                 <button
                   id="view-details-btn"
                   onClick={() => onSetView('details')}

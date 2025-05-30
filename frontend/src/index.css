@@ -7,12 +7,14 @@
   --primary: #8E2DE2;         /* Vibrant Purple */
   --primary-dark: #4A00E0;    /* Deep Purple */
   --primary-gradient: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-  --title-gradient: linear-gradient(90deg, rgb(141, 45, 226) -50%, rgba(0, 245, 160) 150%);
+  --title-gradient: linear-gradient(90deg, rgb(141, 44, 226) -50%, rgba(0, 245, 160) 150%);
+  --pro-gradient: linear-gradient(-36deg,  rgba(141, 44, 226, 0.5) 40%, rgba(225, 225, 225, 0.6) 50%, rgba(141, 44, 226, 0.5) 60%);
   
   /* Secondary & Accent Colors */
   --secondary: #00F5A0;       /* Mint Green */
   --secondary-light: #4EEEB5; /* Light Mint */
   --secondary-gradient: linear-gradient(135deg, var(--secondary), var(--secondary-light));
+
   
   --accent: #FF7D00;          /* Vibrant Orange */
   --accent-light: #FF9B40;    /* Light Orange */
@@ -33,7 +35,7 @@
   --dark-bg: #1A1A2E;         /* Deep Blue Background */
   --dark-card: #16213E;       /* Card Background */
   --dark-surface: #0F3460;    /* Surface Elements */
-  
+  --dark-glass: rgba(142, 45, 226, 0.5);
   /* Text & Border Colors */
   --light-text: #F8F9FA;                /* Primary Text */
   --light-text-secondary: rgba(255, 255, 255, 0.7); /* Secondary Text */
@@ -82,6 +84,35 @@
 .bg-dark { background-color: var(--dark-bg); }
 .bg-card { background-color: var(--dark-card); }
 .bg-surface { background-color: var(--dark-surface); }
+.bg-dark-glass { background-color: var(--dark-glass); }
+
+@keyframes bg-pan {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+@keyframes shimmer {
+  to {
+    background-position-x: 100%;
+  }
+}
+
+.signup-bg { 
+  background-image: url('/public/images/signup-bg.svg'); 
+  background-size: cover; 
+  background-position: 50% 20%; 
+  background-repeat: no-repeat;
+  opacity: 1;
+  filter: saturate(120%) brightness(110%) contrast(115%);
+ 
+
+}
 
 /* Gradient Backgrounds */
 .bg-primary-gradient { background: var(--primary-gradient); }
@@ -145,6 +176,29 @@
   background: var(--danger-gradient);
   color: var(--light-text);
   box-shadow: var(--shadow-danger);
+}
+
+.btn-pro {
+  background: var(--pro-gradient);
+  background-size: 350%;
+  background-position-x: 100%;
+  padding: 0.2rem 0.5rem;
+  margin: 0.3rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--light-text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid var(--light-border);
+  /* box-shadow: 0 4px 12px rgba(0, 245, 160, 0.2); */
+  animation: shimmer 1.2s infinite linear;
+}
+
+@keyframes shimmer {
+  to {
+    background-position-x: 0%;
+  }
 }
 
 /* Status Colors */
@@ -331,6 +385,14 @@
   position: relative;
   z-index: 0;
 }
+.dark-card-gradient {
+  background-color: var(--dark-card);
+  background-image: 
+    radial-gradient(circle at 70% 30%, rgba(142, 45, 226, 0.25) 0%, transparent 50%),
+    radial-gradient(circle at 10% 85%, rgba(0, 245, 160, 0.20) 0%, transparent 50%);
+  position: relative;
+  z-index: 0;
+}
 
 /* Complementary Gradient for Title Text */
 .text-title-gradient {
@@ -352,7 +414,8 @@
 
 /* Apply Inter font globally, ensure configured in index.html */
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400, 600, 800;
   /* Optional: Add base background and text colors if not done elsewhere */
   /* background-color: theme('colors.gray.100'); */
   /* color: theme('colors.gray.800'); */
@@ -360,7 +423,13 @@ body {
 
 .font-title {
   font-family: 'Montserrat Alternates', sans-serif;
-  font-weight:800;
+
+}
+
+.font-playwrite {
+  font-family: 'Playwrite DK Loopet', sans-serif;
+  font-weight: 400;
+  
 }
 
 

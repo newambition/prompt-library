@@ -198,12 +198,49 @@ export async function deleteUserApiKey(token, apiKeyId) {
     const errorData = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(`Failed to delete API key: ${errorData.detail || res.statusText}`);
   }
-  // For DELETE, a 204 response means success, and there might not be a JSON body.
-  // If there is a body (e.g., a confirmation message), res.json() would work.
-  // If not, trying to parse JSON from an empty response will cause an error.
-  // So, we handle 204 specifically.
-  if (res.status === 204) {
-    return null; // Or a custom success object like { success: true, message: "API key deleted" }
+  return null; // For 204 responses, typically we return null or undefined
+}
+
+// Mark that the user has seen the paywall/tier selection modal
+export async function markPaywallModalSeen(token) {
+  const res = await fetch(`${API_BASE}/user/paywall-modal-seen`, {
+    method: 'PUT',
+    headers: createHeaders(token),
+  });
+  if (!res.ok && res.status !== 204) {
+    const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(`Failed to update paywall modal preference: ${errorData.detail || res.statusText}`);
   }
-  return res.json(); // If backend sends a body on successful delete other than 204
+  return null; // 204 No Content response
+}
+
+// Get user profile data including tier and preferences
+export async function getUserProfile(token) {
+  const res = await fetch(`${API_BASE}/user/profile`, {
+    headers: createHeaders(token),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(`Failed to fetch user profile: ${errorData.detail || res.statusText}`);
+  }
+  return res.json();
+}
+
+// Create Stripe checkout session for subscription upgrade
+export async function createCheckoutSession(priceId, successUrl, cancelUrl, token) {
+  const payload = {
+    price_id: priceId,
+    success_url: successUrl,
+    cancel_url: cancelUrl
+  };
+  const res = await fetch(`${API_BASE}/billing/create-checkout-session`, {
+    method: 'POST',
+    headers: createHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(`Failed to create checkout session: ${errorData.detail || res.statusText}`);
+  }
+  return res.json();
 }

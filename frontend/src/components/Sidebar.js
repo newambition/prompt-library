@@ -1,5 +1,5 @@
 // frontend/src/components/Sidebar.js
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FaCog, FaSignInAlt, FaSignOutAlt, FaUserCircle, FaBars, FaTimes, FaLayerGroup } from 'react-icons/fa';
 import SettingsModal from './SettingsModal'; // Keep this import
 
@@ -14,13 +14,19 @@ function Sidebar({
   showSettingsModal,    // To control modal visibility if user is authenticated
   isAuthenticated,
   user,
+  userProfile,
   onLogin,
   onLogout,
   isMobileMenuOpen,
   setIsMobileMenuOpen,
-  onShowTemplates // New prop for showing templates
+  onShowTemplates, // New prop for showing templates
+  showTierSelectionModal, // New prop to hide hamburger when tier modal is open
+  onShowTierModal // New prop to open tier selection modal
 }) 
 {
+  const [showUserPopout, setShowUserPopout] = useState(false);
+  const popoutRef = useRef(null);
+
   const handleMobileMenuToggle = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
@@ -29,16 +35,52 @@ function Sidebar({
     setIsMobileMenuOpen(false);
   };
 
+  const handleAvatarClick = () => {
+    setShowUserPopout(!showUserPopout);
+  };
+
+  const handleLogoutFromPopout = () => {
+    setShowUserPopout(false);
+    onLogout();
+  };
+
+  const handleSettingsFromPopout = () => {
+    setShowUserPopout(false);
+    setShowSettingsModal();
+  };
+
+  // Close popout when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (popoutRef.current && !popoutRef.current.contains(event.target)) {
+        setShowUserPopout(false);
+      }
+    };
+
+    if (showUserPopout) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserPopout]);
+
+  // Get user tier from backend user profile instead of Auth0 user object
+  const userTier = userProfile?.tier || 'free'; // Default to free (lowercase) if not available
+
   return (
     <>
       {/* Mobile Hamburger Button */}
-      <button
-        onClick={handleMobileMenuToggle}
-        className="block sm:hidden fixed top-4 right-4 z-[999] p-1.5 bg-card border border-light rounded-lg text-light hover:text-primary transition-colors duration-200"
-        aria-label="Toggle menu"
-      >
-        {isMobileMenuOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
-      </button>
+      {!showTierSelectionModal && (
+        <button
+          onClick={handleMobileMenuToggle}
+          className="block sm:hidden fixed top-4 right-4 z-[999] p-1.5 bg-card border border-light rounded-lg text-light hover:text-primary transition-colors duration-200"
+          aria-label="Toggle menu"
+        >
+          {isMobileMenuOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
+        </button>
+      )}
 
       {/* Mobile Backdrop Overlay */}
       {isMobileMenuOpen && (
@@ -66,14 +108,62 @@ function Sidebar({
                 My Prompts
                 <span className="block h-0.5 w-8 mt-1 rounded bg-secondary absolute left-0 -bottom-2"></span>
               </h2>
-              <div className="flex items-center mt-1 gap-2">
+              <div className="flex items-center mt-1 gap-2 relative" ref={popoutRef}>
                 {isAuthenticated && user?.picture && (
-                  <img src={user.picture} alt={user.name || 'User'} className="w-8 h-8 rounded-full border-2 border-primary" />
+                  <button
+                    onClick={handleAvatarClick}
+                    className="focus:outline-none focus:ring-2 focus:ring-primary rounded-full"
+                  >
+                    <img 
+                      src={user.picture} 
+                      alt={user.name || 'User'} 
+                      className="w-8 h-8 rounded-full border-2 border-primary cursor-pointer hover:border-secondary transition-colors" 
+                    />
+                  </button>
                 )}
                 {isAuthenticated && !user?.picture && user?.name && (
-                   <div className="flex items-center text-sm text-light-secondary" title={user.name}>
-                      <FaUserCircle size={24} className="mr-2 text-primary" />
+                  <button
+                    onClick={handleAvatarClick}
+                    className="flex items-center text-sm text-light-secondary cursor-pointer hover:text-light transition-colors focus:outline-none focus:ring-2 focus:ring-primary rounded"
+                    title={user.name}
+                  >
+                    <FaUserCircle size={24} className="mr-2 text-primary hover:text-secondary transition-colors" />
                       <span className="truncate max-w-[100px]">{user.name.split('@')[0]}</span>
+                  </button>
+                )}
+                
+                {/* User Popout */}
+                {showUserPopout && isAuthenticated && (
+                  <div className={`
+                    absolute top-9 z-50 w-48 bg-surface border border-light rounded-lg shadow-lg py-2
+                    sm:left-10 sm:right-0
+                    right-0 left-auto
+                  `}>
+                    {/* Tier Display */}
+                    <div className="px-4 py-2">
+                      <span className="text-xs md:text-base text-light-secondary">Tier:</span>
+                      <span className={`ml-2 text-xs sm:text-sm font-semibold ${userTier === 'pro' ? 'text-secondary  ' : 'text-light'}`}>
+                        {userTier === 'pro' ? 'Pro' : 'Free'}
+                      </span>
+                    </div>
+                    
+                    {/* Settings Button */}
+                    <button
+                      onClick={handleSettingsFromPopout}
+                      className="w-full flex items-center px-4 py-2 text-light-secondary hover:text-light hover:bg-surface transition-colors duration-150 text-left text-xs sm:text-sm"
+                    >
+                      <FaCog className="mr-3" size={16} />
+                      Settings
+                    </button>
+                    
+                    {/* Logout Button */}
+                    <button
+                      onClick={handleLogoutFromPopout}
+                      className="w-full flex items-center px-4 py-2 text-light-secondary hover:text-light hover:bg-surface transition-colors text-left text-xs sm:text-sm"
+                    >
+                      <FaSignOutAlt className="mr-3" size={16} />
+                      Logout
+                    </button>
                    </div>
                 )}
               </div>
@@ -166,29 +256,44 @@ function Sidebar({
 
         {/* Footer Section: This part remains at the bottom */}
         <div className="p-1 flex gap-2 items-center border-light-top bg-card">
-          {isAuthenticated ? (
-            <button
-              onClick={onLogout}
-              className="flex-1 flex items-center justify-left text-light-secondary hover:text-light font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out hover:bg-dark"
-            >
-              <FaSignOutAlt className="mr-2" /> Logout
-            </button>
-          ) : (
+          {!isAuthenticated ? (
             <button
               onClick={onLogin}
-              className="flex-1 flex items-center justify-left text-light-secondary hover:text-light font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out hover:bg-dark"
+              className="flex-1 flex items-center justify-center text-light-secondary hover:text-light font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out hover:bg-dark"
             >
                <FaSignInAlt className="mr-2" /> Login
             </button>
+          ) : (
+            <>
+              {/* Free Tier: Upgrade Badge with Usage Indicator */}
+              {userTier === 'free' && (
+                <div className="flex-1">
+                  <div 
+                    className="w-full flex flex-col sm:flex-row items-center justify-center p-2 rounded-lg bg-gradient-to-r from-orange-500/20 to-accent/20 border border-accent/30 cursor-pointer hover:from-orange-500/30 hover:to-accent/30 transition-all duration-200"
+                    onClick={onShowTierModal}
+                  >
+                    <span className="text-accent font-semibold text-sm">Upgrade to Pro</span>
+                    {/* Show usage warning when close to limit (20 - prompts.length <= 5) */}
+                    {prompts.length >= 15 && (
+                      <span className="text-xs text-light-secondary sm:ml-2 mt-1 sm:mt-0">
+                        {20 - prompts.length} Free Prompts Remaining
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Pro Tier: Premium Badge */}
+              {userTier === 'pro' && (
+                <div 
+                  className="flex-1 flex items-center justify-center p-2 rounded-lg bg-gradient-to-r from-secondary/20 to-primary/20 border border-secondary/50 cursor-pointer hover:from-secondary/30 hover:to-primary/30 transition-all duration-200"
+                  onClick={() => {/* Will add subscription management logic later */}}
+                >
+                  <span className="text-secondary font-bold text-sm tracking-wide">✨ PRO TIER ✨</span>
+                </div>
+              )}
+            </>
           )}
-          <button
-            onClick={setShowSettingsModal}
-            className="p-2 text-light-secondary hover:text-primary rounded-lg transition duration-150 ease-in-out hover:bg-dark"
-            title="Settings"
-          >
-            <FaCog size={20} />
-          </button>
-          {isAuthenticated && showSettingsModal && <SettingsModal showSettingsModal={showSettingsModal} setShowSettingsModal={setShowSettingsModal} />}
         </div>
       </aside>
     </>

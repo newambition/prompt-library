@@ -7,6 +7,8 @@ import stripe
 import hmac
 import hashlib
 import json
+import os
+import logging
 
 from src.database import get_db
 from src.config import settings
@@ -16,6 +18,8 @@ from src.auth_utils import verify_token
 
 # Configure Stripe
 stripe.api_key = settings.STRIPE_SECRET_KEY
+WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
 
@@ -258,19 +262,66 @@ async def _handle_subscription_deleted(db: Session, subscription):
 async def _handle_payment_succeeded(db: Session, invoice):
     """Handle successful payment."""
     customer_id = invoice.get('customer')
-    
+    customer_email = invoice.get('customer_email')
+    subscription_id = invoice.get('subscription')
+    user = None
+
     if not customer_id:
+        logging.warning("Stripe webhook: No customer_id in invoice.")
         return
-    
+
+    # 1. Try to find user by Stripe customer ID
     user = crud_users.get_user_by_stripe_customer_id(db, customer_id)
-    if not user:
+    if user:
+        logging.info(f"Stripe webhook: Found user by stripe_customer_id: {user.user_id}")
+    else:
+        # 2. Try to find user by metadata on the subscription
+        if subscription_id:
+            try:
+                subscription = stripe.Subscription.retrieve(subscription_id)
+                metadata = subscription.get('metadata', {})
+                user_id = metadata.get('user_id')
+                auth0_id = metadata.get('auth0_id')
+                if user_id:
+                    user = crud_users.get_user_by_user_id(db, int(user_id))
+                    if user:
+                        logging.info(f"Stripe webhook: Fallback found user by user_id in subscription metadata: {user.user_id}. Updating stripe_customer_id.")
+                        crud_users.update_user_subscription(
+                            db, user.user_id, "pro", "active", stripe_customer_id=customer_id
+                        )
+                        return
+                elif auth0_id:
+                    user = crud_users.get_user_by_auth0_id(db, auth0_id)
+                    if user:
+                        logging.info(f"Stripe webhook: Fallback found user by auth0_id in subscription metadata: {user.user_id}. Updating stripe_customer_id.")
+                        crud_users.update_user_subscription(
+                            db, user.user_id, "pro", "active", stripe_customer_id=customer_id
+                        )
+                        return
+                else:
+                    logging.warning(f"Stripe webhook: No user_id or auth0_id in subscription metadata for subscription {subscription_id}.")
+            except Exception as e:
+                logging.error(f"Stripe webhook: Error fetching subscription {subscription_id}: {e}")
+        # 3. Fallback: try to find user by email
+        if not user and customer_email:
+            user = db.query(crud_users.User).filter(crud_users.User.email == customer_email).first()
+            if user:
+                logging.info(f"Stripe webhook: Fallback found user by email: {user.user_id}. Updating stripe_customer_id.")
+                crud_users.update_user_subscription(
+                    db, user.user_id, "pro", "active", stripe_customer_id=customer_id
+                )
+                return
+            else:
+                logging.warning(f"Stripe webhook: No user found with email {customer_email}.")
+        elif not user:
+            logging.warning("Stripe webhook: No customer_email in invoice for fallback lookup.")
         return
-    
-    # Ensure user is active if payment succeeded
-    if user.subscription_status in ['past_due', 'unpaid']:
-        crud_users.update_user_subscription(
-            db, user.user_id, "pro", "active"
-        )
+
+    # Always update user to pro/active after payment succeeded
+    logging.info(f"Stripe webhook: Updating user {user.user_id} to pro/active after payment succeeded.")
+    crud_users.update_user_subscription(
+        db, user.user_id, "pro", "active", stripe_customer_id=customer_id
+    )
 
 
 async def _handle_payment_failed(db: Session, invoice):

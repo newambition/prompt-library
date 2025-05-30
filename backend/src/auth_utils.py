@@ -11,7 +11,7 @@ from functools import lru_cache # For caching JWKS
 from src.config import settings
 
 # Scheme for bearer token authentication
-oauth2_scheme = HTTPBearer()
+oauth2_scheme = HTTPBearer(auto_error=False)  # Changed to not auto-error to handle manually
 
 # --- JWKS (JSON Web Key Set) Caching ---
 @lru_cache(maxsize=1)
@@ -47,13 +47,16 @@ def get_jwks() -> Dict[str, any]:
 
 # --- Token Verification Dependency ---
 async def verify_token(
-    token: HTTPAuthorizationCredentials = Depends(oauth2_scheme)
+    token: Optional[HTTPAuthorizationCredentials] = Depends(oauth2_scheme)
 ) -> Dict[str, any]:
     """
     FastAPI dependency to verify the Auth0 Access Token.
     Extracts the token from the Authorization header (Bearer scheme).
     """
+    print(f"DEBUG: verify_token called with token: {token is not None}")
+    
     if token is None:
+        print("DEBUG: No token provided")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
@@ -67,27 +70,36 @@ async def verify_token(
     )
     
     token_value = token.credentials
+    print(f"DEBUG: Token value length: {len(token_value) if token_value else 0}")
 
     try:
+        # Check if we have required settings
+        if not settings.AUTH0_DOMAIN or not settings.AUTH0_API_AUDIENCE:
+            print(f"DEBUG: Missing Auth0 config - Domain: {bool(settings.AUTH0_DOMAIN)}, Audience: {bool(settings.AUTH0_API_AUDIENCE)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authentication service configuration error"
+            )
+        
         jwks_map = get_jwks() # This can now raise ValueError if domain not set, or HTTPException
         unverified_header = jwt.get_unverified_header(token_value)
+        print(f"DEBUG: Token header: {unverified_header}")
         
         kid = unverified_header.get("kid")
         if not kid:
-            print("Token header missing 'kid'")
+            print("DEBUG: Token header missing 'kid'")
             raise credentials_exception
 
         key_data = jwks_map.get(kid)
         if not key_data:
-            print(f"'kid' {kid} not found in JWKS")
+            print(f"DEBUG: 'kid' {kid} not found in JWKS")
             # Attempt to refresh JWKS cache once if key not found
             get_jwks.cache_clear()
             jwks_map = get_jwks()
             key_data = jwks_map.get(kid)
             if not key_data:
-                print(f"'kid' {kid} still not found in refreshed JWKS")
+                print(f"DEBUG: 'kid' {kid} still not found in refreshed JWKS")
                 raise credentials_exception
-
 
         # Construct RSA key from JWKS data
         rsa_key = {
@@ -97,6 +109,9 @@ async def verify_token(
             "n": key_data.get("n"),
             "e": key_data.get("e"),
         }
+        
+        print(f"DEBUG: Verifying token with audience: {settings.AUTH0_API_AUDIENCE}")
+        print(f"DEBUG: Verifying token with issuer: https://{settings.AUTH0_DOMAIN}/")
         
         # Verify and decode the token
         payload = jwt.decode(
@@ -109,35 +124,36 @@ async def verify_token(
         
         user_id: Optional[str] = payload.get("sub")
         if user_id is None:
-            print("Token payload missing 'sub' (subject) claim")
+            print("DEBUG: Token payload missing 'sub' (subject) claim")
             raise credentials_exception
 
+        print(f"DEBUG: Token validation successful for user: {user_id}")
         return payload 
 
     except ExpiredSignatureError:
-        print("Token has expired")
+        print("DEBUG: Token has expired")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
     except JWTClaimsError as e:
-        print(f"Token claims error: {e}")
+        print(f"DEBUG: Token claims error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token claims invalid: {str(e)}", # Use str(e) for detail
             headers={"WWW-Authenticate": "Bearer"},
         )
     except JWTError as e:
-        print(f"JWT processing error: {e}")
+        print(f"DEBUG: JWT processing error: {e}")
         raise credentials_exception
     except ValueError as e: # Catch configuration errors from get_jwks
-        print(f"Configuration error for JWT validation: {e}")
+        print(f"DEBUG: Configuration error for JWT validation: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Authentication configuration error: {str(e)}"
         )
     except Exception as e:
-        print(f"Unexpected error during token validation: {type(e).__name__} - {e}")
+        print(f"DEBUG: Unexpected error during token validation: {type(e).__name__} - {e}")
         raise credentials_exception
 

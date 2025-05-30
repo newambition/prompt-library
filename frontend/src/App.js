@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import NewPromptModal from './components/NewPromptModal';
 import SettingsModal from './components/SettingsModal';
+import TierSelectionModal from './components/TierSelectionModal';
 import InitialViewAnimation from './components/InitialViewAnimation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth0 } from '@auth0/auth0-react';
@@ -17,7 +18,9 @@ import {
   deletePrompt as apiDeletePrompt,
   updatePrompt as apiUpdatePrompt,
   runPlaygroundTest as apiRunPlaygroundTest,
-  getUserApiKeys as apiGetUserApiKeys
+  getUserApiKeys as apiGetUserApiKeys,
+  getUserProfile as apiGetUserProfile,
+  markPaywallModalSeen as apiMarkPaywallModalSeen
 } from './api';
 
 const LOGIN_REQUIRED_FOR_TEST_MESSAGE = "LOGIN_REQUIRED_FOR_TEST";
@@ -44,11 +47,17 @@ function App() {
   const [error, setError] = useState(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showNewPromptModal, setShowNewPromptModal] = useState(false);
+  const [showTierSelectionModal, setShowTierSelectionModal] = useState(false);
+  const [tierSelectionSubmitting, setTierSelectionSubmitting] = useState(false);
   const [userApiKeys, setUserApiKeys] = useState([]);
   const [apiKeysLoading, setApiKeysLoading] = useState(false);
   const [apiKeysError, setApiKeysError] = useState(null);
   const [isDetailsViewBusy, setIsDetailsViewBusy] = useState(false);
   const [templatePromptText, setTemplatePromptText] = useState('');
+  
+  // User profile data from backend (includes has_seen_paywall_modal, tier, etc.)
+  const [userProfile, setUserProfile] = useState(null);
+  const [userProfileLoading, setUserProfileLoading] = useState(false);
 
   // Mobile menu state for responsive sidebar
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -131,12 +140,39 @@ function App() {
     }
   }, [isAuthenticated, getAuthToken]);
 
+  // Function to load user profile - lifted from SettingsModal
+  const loadUserProfile = useCallback(async () => {
+    if (!isAuthenticated) {
+      setUserProfile(null);
+      setUserProfileLoading(false);
+      return null;
+    }
+    setUserProfileLoading(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setUserProfileLoading(false);
+        return null;
+      }
+      const profile = await apiGetUserProfile(token);
+      setUserProfile(profile);
+      return profile;
+    } catch (err) {
+      console.error('Failed to load user profile:', err.message);
+      setUserProfile(null);
+      return null;
+    } finally {
+      setUserProfileLoading(false);
+    }
+  }, [isAuthenticated, getAuthToken]);
+
   useEffect(() => {
     loadPrompts();
-    if (isAuthenticated) { // Load API keys if authenticated on initial load/auth change
+    if (isAuthenticated) { // Load API keys and user profile if authenticated on initial load/auth change
         loadUserApiKeys();
+        loadUserProfile();
     }
-  }, [isAuthenticated, loadPrompts, loadUserApiKeys]);
+  }, [isAuthenticated, loadPrompts, loadUserApiKeys, loadUserProfile]);
   
    // Reload keys if settings modal is shown (to catch updates made within it)
   useEffect(() => {
@@ -144,6 +180,23 @@ function App() {
       loadUserApiKeys();
     }
   }, [showSettingsModal, isAuthenticated, loadUserApiKeys]);
+
+  // Check if we should show tier selection modal for first-time users
+  useEffect(() => {
+    const checkShouldShowTierModal = async () => {
+      if (!isAuthenticated || authIsLoading || userProfileLoading) return;
+      
+      // Check if we have user profile data and if they haven't seen the modal
+      if (userProfile && !userProfile.has_seen_paywall_modal) {
+        // Show modal after a brief delay to ensure smooth UX
+        setTimeout(() => {
+          setShowTierSelectionModal(true);
+        }, 1000);
+      }
+    };
+
+    checkShouldShowTierModal();
+  }, [isAuthenticated, authIsLoading, userProfile, userProfileLoading]);
 
   const selectedPrompt = useMemo(() => {
     return selectedPromptId ? promptsData[selectedPromptId] : null;
@@ -389,6 +442,59 @@ function App() {
     }
   }, [isAuthenticated, getAuthToken, selectedPromptId]);
 
+  // --- Tier Selection Modal Handlers ---
+  const handleTierSelection = useCallback(async (selectedTier) => {
+    setTierSelectionSubmitting(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setTierSelectionSubmitting(false);
+        return;
+      }
+
+      // Mark that user has seen the paywall modal
+      await apiMarkPaywallModalSeen(token);
+      
+      // Refresh user profile to get updated has_seen_paywall_modal value
+      await loadUserProfile();
+
+      if (selectedTier === 'pro' || selectedTier === 'yearly') {
+        // TODO: Handle Pro tier subscription flow
+        // For now, just show a message
+        alert('Pro tier subscription flow will be implemented in the next phase!');
+      }
+      
+      // Close the modal
+      setShowTierSelectionModal(false);
+    } catch (err) {
+      console.error('Error handling tier selection:', err);
+      alert('There was an error processing your selection. Please try again.');
+    } finally {
+      setTierSelectionSubmitting(false);
+    }
+  }, [getAuthToken, loadUserProfile]);
+
+  const handleCloseTierModal = useCallback(() => {
+    if (tierSelectionSubmitting) return; // Prevent closing while submitting
+    
+    setShowTierSelectionModal(false);
+    
+    // Mark in backend that they've seen it
+    const markSeen = async () => {
+      try {
+        const token = await getAuthToken();
+        if (token) {
+          await apiMarkPaywallModalSeen(token);
+          // Refresh user profile to get updated has_seen_paywall_modal value
+          await loadUserProfile();
+        }
+      } catch (err) {
+        console.error('Error marking paywall modal as seen:', err);
+      }
+    };
+    markSeen();
+  }, [tierSelectionSubmitting, getAuthToken, loadUserProfile]);
+
   const handleFilterChange = useCallback((event) => {
     setActiveFilterTag(event.target.value);
   }, []);
@@ -487,11 +593,14 @@ function App() {
         showSettingsModal={showSettingsModal && isAuthenticated}
         isAuthenticated={isAuthenticated}
         user={user}
+        userProfile={userProfile}
         onLogin={handleLogin}
         onLogout={handleLogout}
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
         onShowTemplates={handleShowTemplates}
+        showTierSelectionModal={showTierSelectionModal}
+        onShowTierModal={() => setShowTierSelectionModal(true)}
       />
       
       {/* Main content container - responsive width and padding for mobile */}
@@ -535,6 +644,9 @@ function App() {
               apiKeysLoading={apiKeysLoading}
               isDetailsViewBusy={isDetailsViewBusy}
               onUseTemplate={handleUseTemplate}
+              user={user}
+              userProfile={userProfile}
+              onShowTierModal={() => setShowTierSelectionModal(true)}
             />
           )}
           {(!dataLoading && !error && !showInitialAnimation && !selectedPrompt && isAuthenticated && currentView !== 'templates') && (
@@ -567,6 +679,13 @@ function App() {
           refreshApiKeys={loadUserApiKeys}
         />
       )}
+      
+      <TierSelectionModal
+        isOpen={showTierSelectionModal}
+        onClose={handleCloseTierModal}
+        onSelectTier={handleTierSelection}
+        isSubmitting={tierSelectionSubmitting}
+      />
     </div>
   );
 }

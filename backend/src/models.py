@@ -1,7 +1,7 @@
 # Defines SQLAlchemy ORM models corresponding to database tables
 
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Text, ForeignKey, JSON, Index, DateTime, func, LargeBinary
+    create_engine, Column, Integer, String, Text, ForeignKey, JSON, Index, DateTime, func, LargeBinary, Boolean
 )
 from sqlalchemy.orm import relationship, declarative_base, Mapped, mapped_column
 from sqlalchemy.ext.mutable import MutableDict # Needed for JSON mutation tracking
@@ -25,6 +25,7 @@ class User(Base):
     subscription_start_date = Column(DateTime(timezone=True), nullable=True) # e.g., "2025-01-01 00:00:00"
     subscription_end_date = Column(DateTime(timezone=True), nullable=True) # e.g., "2025-01-01 00:00:00"
     stripe_customer_id = Column(String(255), nullable=True) # Stripe customer id
+    has_seen_paywall_modal = Column(Boolean, nullable=False, default=False) # Track if user has seen tier selection modal
 
 class PromptDB(Base):
     """SQLAlchemy model for the 'prompts' table."""

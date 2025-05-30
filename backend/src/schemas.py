@@ -114,6 +114,7 @@ class User(UserBase):
     subscription_start_date: Optional[datetime.datetime] = None
     subscription_end_date: Optional[datetime.datetime] = None
     stripe_customer_id: Optional[str] = None
+    has_seen_paywall_modal: bool = False
     created_at: datetime.datetime
 
     model_config = ConfigDict(from_attributes=True)

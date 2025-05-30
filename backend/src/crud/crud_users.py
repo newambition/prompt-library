@@ -121,4 +121,16 @@ def count_prompt_versions(db: Session, user_id: int, prompt_id: str) -> int:
     ).filter(
         PromptDB.user_id == user_id,
         PromptDB.prompt_id == prompt_id
-    ).scalar() 
+    ).scalar()
+
+
+def update_user_paywall_modal_seen(db: Session, user_id: int, has_seen: bool) -> bool:
+    """Update user's has_seen_paywall_modal preference."""
+    db_user = db.query(User).filter(User.user_id == user_id).first()
+    if not db_user:
+        return False
+    
+    db_user.has_seen_paywall_modal = has_seen
+    db.commit()
+    db.refresh(db_user)
+    return True 

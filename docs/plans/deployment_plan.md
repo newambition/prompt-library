@@ -37,17 +37,37 @@
 ### Sub-Phase 3.1 & 3.2: [COMPLETED] (See summary above)
 
 ### Sub-Phase 3.3: Frontend Monetization UI
-- 1. **UI Setup for Monetization**
-    - a. [ ] **Tier Presentation:** UI to display Free and Pro tiers with their benefits [subs].
-    - b. [ ] **Upgrade/Manage Subscription Flow:**µµ
-        - i. [ ] Buttons/links to initiate upgrade (calls `/billing/create-checkout-session`, redirects to Stripe).
-        - ii. [ ] Button/link to manage subscription (calls `/billing/create-customer-portal-session`, redirects to Stripe Customer Portal).
-        - iii. [ ] Clear display of current subscription status.
-    - c. [ ] **Conditional UI Rendering:** UI elements should adapt based on user tier (e.g., prompts for upgrade, visual distinction of Pro status).
+1. **UI Setup for Monetization**
+    - a. [ ] **Tier Presentation:** 
+        - On first successful sign up, display a full-size view before loading the main app/dashboard.
+        - View clearly presents Pro (default focus) and Free tiers, with benefits, pricing, and a visible "Continue with Free" or similar option.
+        - Modal is only shown once, immediately post-signup (not on every login).
+        - **Implementation Steps:**
+            - 1a.a [X] **Backend Database Field**: Add `has_seen_paywall_modal` boolean field to User model, defaults to false
+            - 1a.b [X] **Backend API Endpoint**: Create endpoint to update `has_seen_paywall_modal` to true after user interaction
+            - 1a.c [X] **Database Migration**: Create and run Alembic migration for new user field
+            - 1a.d [X] **Frontend TierSelectionModal Component**: Create responsive modal component with mobile/desktop layouts
+            - 1a.e [X] **App.js Integration**: Add logic to show modal when `isAuthenticated && !user.has_seen_paywall_modal`
+            - 1a.f [X] **API Integration**: Connect frontend to backend endpoint for updating user preference
+            - 1a.g [X] **Responsive Design**: Implement mobile (stacked) and desktop (side-by-side) layouts using existing design patterns
+            - 1a.h [X] **Testing & Validation**: Test signup flow, modal display, and preference persistence
+    - b. [ ] **Upgrade/Manage Subscription Flow:**
+        - i. [X] Sidebar (mobile & desktop) and header (desktop only) displays user's current tier badge ("Pro User" or "Upgrade").
+            - - "Upgrade" badge is clickable and opens the same modal as above, showing tier benefits and pricing.
+            - - "Pro User" badge opens a subscription management modal (plan status, renewal date, Stripe portal link).
+        - ii. [X] Buttons/links to initiate upgrade (calls `/billing/create-checkout-session`, redirects to Stripe Checkout).
+        - iii. [ ] Button/link to manage subscription (calls `/billing/create-customer-portal-session`, redirects to Stripe Customer Portal).
+        - iv. [ ] Clear display of current subscription status, next billing date, and ability to update/cancel subscription.
+    - c. [X] **Conditional UI Rendering:** 
+        - UI elements (e.g., prompt limit counter, version limit toasts, sidebar badges) adapt based on user tier.
+        - When free users approach or reach usage limits, show persistent, non-intrusive notifications with a CTA to upgrade (e.g., "2 prompts left" with "Get unlimited prompts" link).
+        - When attempting to exceed limits (e.g., more prompt versions), show a toast with an upgrade link.
 
-- 2. **User Experience for Downgrade/Upgrade:**
-    - a. [X] Define and implement backend logic for what happens when a user's subscription lapses (e.g., downgrade to free tier, enforcement of free tier limits, handling of excess prompts/versions).
-    - b. [ ] Ensure the frontend clearly communicates changes in subscription status, including downgrade scenarios, and provides appropriate messaging and UI states for users who lose Pro access.
+2. **User Experience for Downgrade/Upgrade:**
+    - a. [X] Define and implement backend logic for when a user's subscription lapses (e.g., automatic downgrade to free tier, enforce free tier limits, handle excess prompts/versions gracefully).
+    - b. [ ] Ensure the frontend clearly communicates any changes in subscription status, including downgrade scenarios:
+        - Provide visible, contextual messaging if Pro access is lost.
+        - UI should update immediately to reflect new limits, with info on how to re-upgrade or manage excess data (e.g., "You have 25 prompts, but only 20 are available on the free plan—upgrade to access all prompts.").
 
     **Remaining Work:**
 - ❌ **Step 3a**: Stripe dashboard setup (account, products, pricing plans)
@@ -140,7 +160,7 @@ This section lists features that were part of the broader plan but are deferred 
             * Benefit: Full access. 
         * API Key Management:
             * Benefit: Full access to add and manage their own keys.
-    * **Premium Tier ("Pro Tier"):**
+    * **Premium Tier ("Pro Tier") £7/month:**
         * Number of Prompts:
             * Benefit: Unlimited.
         * Versions Per Prompt:
