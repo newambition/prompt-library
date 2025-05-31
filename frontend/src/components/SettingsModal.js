@@ -1,35 +1,34 @@
 // frontend/src/components/SettingsModal.js
 import React, { useRef, useState, useEffect } from 'react';
-import { FaTimes, FaEdit, FaTrash, FaPlus } from 'react-icons/fa'; // Added FaPlus
-import { addUserApiKey, updateUserApiKey, deleteUserApiKey } from '../api'; // Import the new API function and addUserApiKey
+import { FaTimes, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
+import { addUserApiKey, updateUserApiKey, deleteUserApiKey } from '../api';
+import { useAuthContext } from '../context/AuthContext'; // Import the context hook
 
 // Define LLM providers for the dropdown
 const LLM_PROVIDERS = [
   { value: 'gemini', label: 'Gemini' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'anthropic', label: 'Anthropic' },
-  // Add other providers here as needed
 ];
 
 function SettingsModal({ 
   showSettingsModal, 
   setShowSettingsModal, 
-  getAuthToken, 
-  isAuthenticated, 
-  // Props for lifted state from App.js
-  userApiKeys = [], // Default to an empty array if undefined is passed
-  apiKeysLoading, // Renamed from isLoading in App.js for clarity here
-  apiKeysError,   // Renamed from error in App.js for clarity here
-  refreshApiKeys  // This is loadUserApiKeys from App.js
+  // getAuthToken, // Will come from context
+  // isAuthenticated, // Will come from context
+  userApiKeys = [],
+  apiKeysLoading,
+  apiKeysError,
+  refreshApiKeys
 }) {
+  const { getAuthToken, isAuthenticated } = useAuthContext(); // Use context
   const modalRef = useRef();
-  // Local state for submission status and UI messages, not for the keys themselves
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
-  const [errorMessage, setErrorMessage] = useState(null); // Local error for form submissions etc.
+  const [errorMessage, setErrorMessage] = useState(null);
 
   // State for adding a new key
-  const [newProvider, setNewProvider] = useState(LLM_PROVIDERS[0].value); // Default to first provider
+  const [newProvider, setNewProvider] = useState(LLM_PROVIDERS[0].value);
   const [newApiKeyInput, setNewApiKeyInput] = useState('');
   const [isAdding, setIsAdding] = useState(false); // To show/hide the add form
 
@@ -50,7 +49,6 @@ function SettingsModal({
   // Effect to reset form states and messages when the modal is opened/closed
   useEffect(() => {
     if (showSettingsModal) {
-      // refreshApiKeys(); // App.js now handles initial load when modal opens
       setIsAdding(false);
       setNewProvider(LLM_PROVIDERS[0].value);
       setNewApiKeyInput('');
@@ -61,18 +59,17 @@ function SettingsModal({
       setKeyToDelete(null);
       resetMessages(); 
     } else {
-      // Optionally reset states when modal closes if they should not persist
       setIsAdding(false);
       setIsEditing(false);
       setShowDeleteConfirm(false);
       resetMessages();
     }
-  }, [showSettingsModal]); // refreshApiKeys removed from deps, App.js controls it
+  }, [showSettingsModal]);
 
-  if (!showSettingsModal) return null;
+  if (!showSettingsModal || !isAuthenticated) return null; // Also check isAuthenticated from context
 
   const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget && !showDeleteConfirm && !isSubmitting) setShowSettingsModal(false); // Prevent closing if delete confirm is up
+    if (e.target === e.currentTarget && !showDeleteConfirm && !isSubmitting) setShowSettingsModal(false);
   };
 
   const handleInitiateAddKey = () => {
@@ -99,7 +96,7 @@ function SettingsModal({
     }
     setIsSubmitting(true);
     try {
-      const token = await getAuthToken();
+      const token = await getAuthToken(); // From context
       if (!token) {
         setErrorMessage('Authentication error. Please log in again.');
         setIsSubmitting(false);
@@ -110,7 +107,7 @@ function SettingsModal({
       setNewApiKeyInput('');
       setNewProvider(LLM_PROVIDERS[0].value);
       setIsAdding(false);
-      await refreshApiKeys(true); // Refresh the list, pass true to indicate a success that might need messaging
+      await refreshApiKeys(true);
     } catch (err) {
       setErrorMessage(`Failed to add API key: ${err.message}`);
     } finally {
@@ -142,7 +139,7 @@ function SettingsModal({
     }
     setIsSubmitting(true);
     try {
-      const token = await getAuthToken();
+      const token = await getAuthToken(); // From context
       if (!token) {
         setErrorMessage('Authentication error. Please log in again.');
         setIsSubmitting(false);
@@ -182,17 +179,17 @@ function SettingsModal({
     }
     setIsSubmitting(true);
     try {
-      const token = await getAuthToken();
+      const token = await getAuthToken(); // From context
       if (!token) {
         setErrorMessage('Authentication error. Please log in again.');
         setIsSubmitting(false);
         return;
       }
-      await deleteUserApiKey(token, keyToDelete.id); // Use keyToDelete.id
+      await deleteUserApiKey(token, keyToDelete.id);
       setSuccessMessage(`API key for ${keyToDelete.llm_provider.toUpperCase()} deleted successfully!`);
       setShowDeleteConfirm(false);
       setKeyToDelete(null);
-      await refreshApiKeys(true); // Refresh the list
+      await refreshApiKeys(true);
     } catch (err) {
       setErrorMessage(`Failed to delete API key: ${err.message}`);
     } finally {

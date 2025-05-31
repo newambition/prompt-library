@@ -5,34 +5,9 @@ import PlaygroundView from './PlaygroundView';
 import PromptTemplates from './PromptTemplates';
 import { FaPencilAlt } from 'react-icons/fa';
 import { PROMPT_TEMPLATES } from '../constants/promptTemplates';
+import { useAuthContext } from '../context/AuthContext'; // Import the context hook
 
-/**
- * MainContent component holding the header and the active view (Details or Playground).
- * @param {object} props - Component props.
- * @param {string} props.currentView - The current active view ('details' or 'playground').
- * @param {object|null} props.selectedPrompt - The currently selected prompt object.
- * @param {string|null} props.selectedVersionId - The ID of the currently selected version.
- * @param {Function} props.onSetView - Callback function to change the active view.
- * @param {Function} props.onSelectVersion - Callback function when a version is selected in DetailsView.
- * @param {Function} props.onSaveNotes - Callback function to save notes.
- * @param {Function} props.onAddTag - Callback function to add a tag.
- * @param {Function} props.onRemoveTag - Callback function to remove a tag.
- * @param {Function} props.onRunTest - Callback function to run a test in PlaygroundView.
- * @param {Function} props.onSaveAsNewVersion - Callback function to save a new version from PlaygroundView.
- * @param {Function} props.onDeletePrompt - Callback function to delete a prompt.
- * @param {Function} props.onRenamePrompt - Callback function to rename a prompt.
- * @param {Array} props.availableTags - Array of unique tag objects for the tag input datalist.
- * @param {boolean} props.isAuthenticated - Indicates whether the user is authenticated.
- * @param {Function} props.onLogin - Callback function to handle login.
- * @param {Array} props.userApiKeys - Array of user's API keys.
- * @param {boolean} props.apiKeysLoading - Loading state for API keys.
- * @param {boolean} props.isDetailsViewBusy - Indicates whether the DetailsView is busy.
- * @param {Function} props.onUseTemplate - Callback function when a template is used.
- * @param {object} props.user - The user object.
- * @param {Function} props.onShowTierModal - Callback function to show the tier modal.
- * @param {object} props.userProfile - The user profile object.
- * 
- */
+// Props documentation updated to reflect context usage for auth/user data
 function MainContent({
   currentView,
   selectedPrompt,
@@ -47,16 +22,22 @@ function MainContent({
   onDeletePrompt,
   onRenamePrompt,
   availableTags,
-  isAuthenticated,
-  onLogin,
-  userApiKeys,
-  apiKeysLoading,
+  // isAuthenticated, // From context
+  // onLogin, // From context (loginWithRedirect)
+  userApiKeys, // Still passed as prop from App.js
+  apiKeysLoading, // Still passed as prop from App.js
   isDetailsViewBusy,
   onUseTemplate,
-  user,
-  userProfile,
+  // user, // From context (auth0User)
+  // userProfile, // From context
   onShowTierModal
 }) {
+  const {
+    isAuthenticated,
+    // user: auth0User, // auth0 user object if needed directly
+    userProfile
+    // loginWithRedirect // if a login button were here
+  } = useAuthContext();
   const buttonsDisabled = !selectedPrompt || !selectedVersionId;
 
   // Inline edit state for prompt title
@@ -266,8 +247,9 @@ function MainContent({
             selectedVersionId={selectedVersionId}
             onRunTest={onRunTest}
             onSaveAsNewVersion={onSaveAsNewVersion}
-            isAuthenticated={isAuthenticated}
-            onLogin={onLogin}
+            // isAuthenticated, onLogin, userApiKeys, apiKeysLoading will be handled by PlaygroundView via context or passed if still needed
+            // For now, assuming PlaygroundView will be updated to use context for auth.
+            // If PlaygroundView still needs userApiKeys/apiKeysLoading, App.js must continue to pass them here.
             userApiKeys={userApiKeys}
             apiKeysLoading={apiKeysLoading}
           />

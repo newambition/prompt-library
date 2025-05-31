@@ -26,3 +26,6 @@ google-genai==1.15.0
 
 # Payment processing
 stripe==11.3.0
+
+# Rate limiting
+slowapi==0.1.9

@@ -157,3 +157,51 @@ async def verify_token(
         print(f"DEBUG: Unexpected error during token validation: {type(e).__name__} - {e}")
         raise credentials_exception
 
+from sqlalchemy.orm import Session
+from src.database import get_db
+from src.crud import crud_users
+from src import models
+
+async def get_current_active_user(
+    auth0_payload: Dict[str, any] = Depends(verify_token),
+    db: Session = Depends(get_db)
+) -> models.User:
+    """
+    FastAPI dependency to get the current active user from the database.
+    Relies on verify_token to authenticate and get Auth0 user data,
+    then fetches or creates the user in the local database.
+    """
+    if not auth0_payload: # Should not happen if verify_token is working correctly
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials, no payload from token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    auth0_id = auth0_payload.get("sub")
+    if not auth0_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Auth0 ID (sub) missing from token payload.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        user = crud_users.get_or_create_user_from_auth0(db, auth0_payload)
+        if user is None: # Should ideally be handled by get_or_create_user_from_auth0 raising an error
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not get or create user.",
+            )
+        return user
+    except ValueError as ve: # Catch specific errors from crud_users if any (e.g., validation)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error processing user data: {str(ve)}",
+        )
+    except Exception as e: # Catch any other unexpected errors during DB operation
+        print(f"Error in get_current_active_user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching user information.",
+        )

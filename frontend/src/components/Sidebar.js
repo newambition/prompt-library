@@ -2,28 +2,31 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaCog, FaSignInAlt, FaSignOutAlt, FaUserCircle, FaBars, FaTimes, FaLayerGroup } from 'react-icons/fa';
 import SettingsModal from './SettingsModal'; // Keep this import
+import { useAuthContext } from '../context/AuthContext'; // Import the context hook
 
 function Sidebar({
   prompts,
   selectedPromptId,
   onSelectPrompt,
-  onAddNewPrompt, // This will be called, App.js will handle auth check
+  onAddNewPrompt,
   onFilterChange,
   availableTags,
-  setShowSettingsModal, // This is now the gatekeeper function from App.js
-  showSettingsModal,    // To control modal visibility if user is authenticated
-  isAuthenticated,
-  user,
-  userProfile,
-  onLogin,
-  onLogout,
+  setShowSettingsModal,
+  // showSettingsModal, // This prop is primarily for App.js to control, Sidebar doesn't need to consume it directly for its logic if settings button just calls setShowSettingsModal
   isMobileMenuOpen,
   setIsMobileMenuOpen,
-  onShowTemplates, // New prop for showing templates
-  showTierSelectionModal, // New prop to hide hamburger when tier modal is open
-  onShowTierModal // New prop to open tier selection modal
+  onShowTemplates,
+  showTierSelectionModal,
+  onShowTierModal
 }) 
 {
+  const {
+    isAuthenticated,
+    user, // This is auth0User
+    userProfile,
+    loginWithRedirect, // Renamed from onLogin
+    logout // Renamed from onLogout
+  } = useAuthContext();
   const [showUserPopout, setShowUserPopout] = useState(false);
   const popoutRef = useRef(null);
 
@@ -41,7 +44,7 @@ function Sidebar({
 
   const handleLogoutFromPopout = () => {
     setShowUserPopout(false);
-    onLogout();
+    logout(); // From context
   };
 
   const handleSettingsFromPopout = () => {
@@ -258,7 +261,7 @@ function Sidebar({
         <div className="p-1 flex gap-2 items-center border-light-top bg-card">
           {!isAuthenticated ? (
             <button
-              onClick={onLogin}
+              onClick={() => loginWithRedirect()} // From context
               className="flex-1 flex items-center justify-center text-light-secondary hover:text-light font-medium py-2 px-4 rounded-lg transition duration-150 ease-in-out hover:bg-dark"
             >
                <FaSignInAlt className="mr-2" /> Login

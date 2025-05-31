@@ -7,7 +7,10 @@ import SettingsModal from './components/SettingsModal';
 import TierSelectionModal from './components/TierSelectionModal';
 import InitialViewAnimation from './components/InitialViewAnimation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useAuth0 } from '@auth0/auth0-react';
+// import { useAuth0 } from '@auth0/auth0-react';
+import { AuthProvider, useAuthContext } from './context/AuthContext';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import {
   fetchPrompts as apiFetchPrompts,
   createPrompt as apiCreatePrompt,
@@ -28,15 +31,18 @@ const LOGIN_REQUIRED_FOR_SAVE_MESSAGE = "Please log in to save your changes.";
 const LOGIN_REQUIRED_FOR_SETTINGS_MESSAGE = "Please log in to access settings.";
 
 
-function App() {
+function AppContent() { // Renamed App to AppContent, App will be the provider wrapper
   const {
-    isLoading: authIsLoading,
     isAuthenticated,
-    user,
+    user, // This is auth0User from context
+    authIsLoading,
     loginWithRedirect,
-    logout,
-    getAccessTokenSilently
-  } = useAuth0();
+    logout, // This is wrapped logout from context
+    getAuthToken, // From context
+    userProfile, // From context
+    userProfileLoading, // From context
+    loadUserProfile // From context
+  } = useAuthContext();
 
   const [promptsData, setPromptsData] = useState({});
   const [selectedPromptId, setSelectedPromptId] = useState(null);
@@ -56,29 +62,11 @@ function App() {
   const [templatePromptText, setTemplatePromptText] = useState('');
   
   // User profile data from backend (includes has_seen_paywall_modal, tier, etc.)
-  const [userProfile, setUserProfile] = useState(null);
-  const [userProfileLoading, setUserProfileLoading] = useState(false);
-
   // Mobile menu state for responsive sidebar
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const getAuthToken = useCallback(async () => {
-    if (!isAuthenticated) return null; // Don't attempt if not authenticated
-    try {
-      const token = await getAccessTokenSilently({
-        authorizationParams: {
-          audience: process.env.REACT_APP_AUTH0_AUDIENCE,
-        },
-      });
-      return token;
-    } catch (e) {
-      console.error("Error getting access token", e);
-      if (e.error === 'login_required' || e.error === 'consent_required') {
-        loginWithRedirect(); // Prompt user to re-login if token cannot be obtained silently
-      }
-      throw e;
-    }
-  }, [getAccessTokenSilently, isAuthenticated, loginWithRedirect]);
+  // getAuthToken is now from AuthContext
+  // userProfile, userProfileLoading, loadUserProfile are from AuthContext
 
   const loadPrompts = useCallback(async () => {
     if (!isAuthenticated) {
@@ -91,8 +79,8 @@ function App() {
     setDataLoading(true);
     setError(null);
     try {
-      const token = await getAuthToken();
-      if (!token) { // Should not happen if isAuthenticated is true, but as a safeguard
+      const token = await getAuthToken(); // Using context's getAuthToken
+      if (!token) {
         setDataLoading(false);
         return;
       }
@@ -103,7 +91,8 @@ function App() {
       });
       setPromptsData(promptsObj);
     } catch (err) {
-      setError(`Failed to load prompts: ${err.message}.`);
+      // setError(`Failed to load prompts: ${err.message}.`); // Keep internal error state if needed for UI
+      toast.error(`Failed to load prompts: ${err.message}`);
       setPromptsData({});
     } finally {
       setDataLoading(false);
@@ -120,7 +109,7 @@ function App() {
     setApiKeysLoading(true);
     setApiKeysError(null);
     try {
-      const token = await getAuthToken();
+      const token = await getAuthToken(); // Using context's getAuthToken
       if (!token) {
         setApiKeysLoading(false);
         setApiKeysError('Authentication error for API keys.');
@@ -128,9 +117,7 @@ function App() {
       }
       const keys = await apiGetUserApiKeys(token);
       setUserApiKeys(keys || []);
-      // Success message display is now handled within SettingsModal using its own state
-      // if (showSuccessMessageInModal) { /* Call a prop to show success in modal if needed */ }
-      return keys || []; // Return the keys
+      return keys || [];
     } catch (err) {
       setApiKeysError(`Failed to load API keys: ${err.message}`);
       setUserApiKeys([]);
@@ -138,42 +125,22 @@ function App() {
     } finally {
       setApiKeysLoading(false);
     }
-  }, [isAuthenticated, getAuthToken]);
+  }, [isAuthenticated, getAuthToken]); // getAuthToken from context
 
-  // Function to load user profile - lifted from SettingsModal
-  const loadUserProfile = useCallback(async () => {
-    if (!isAuthenticated) {
-      setUserProfile(null);
-      setUserProfileLoading(false);
-      return null;
-    }
-    setUserProfileLoading(true);
-    try {
-      const token = await getAuthToken();
-      if (!token) {
-        setUserProfileLoading(false);
-        return null;
-      }
-      const profile = await apiGetUserProfile(token);
-      setUserProfile(profile);
-      return profile;
-    } catch (err) {
-      console.error('Failed to load user profile:', err.message);
-      setUserProfile(null);
-      return null;
-    } finally {
-      setUserProfileLoading(false);
-    }
-  }, [isAuthenticated, getAuthToken]);
-
+  // loadUserProfile is now from AuthContext, it's called automatically by AuthProvider
+  // This useEffect handles initial data loading based on authentication.
+  // User profile is loaded by AuthProvider.
   useEffect(() => {
-    loadPrompts();
-    if (isAuthenticated) { // Load API keys and user profile if authenticated on initial load/auth change
-        loadUserApiKeys();
-        loadUserProfile();
+    if (isAuthenticated && !authIsLoading) { // authIsLoading from context
+      loadPrompts();
+      loadUserApiKeys();
+      // loadUserProfile(); // AuthProvider handles this
+    } else if (!isAuthenticated && !authIsLoading) {
+      loadPrompts(); // Will clear prompts
+      setUserApiKeys([]); // Clear API keys
     }
-  }, [isAuthenticated, loadPrompts, loadUserApiKeys, loadUserProfile]);
-  
+  }, [isAuthenticated, authIsLoading, loadPrompts, loadUserApiKeys]); // Removed loadUserProfile
+
    // Reload keys if settings modal is shown (to catch updates made within it)
   useEffect(() => {
     if (showSettingsModal && isAuthenticated) {
@@ -182,13 +149,12 @@ function App() {
   }, [showSettingsModal, isAuthenticated, loadUserApiKeys]);
 
   // Check if we should show tier selection modal for first-time users
+  // This now uses userProfile and userProfileLoading from AuthContext
   useEffect(() => {
-    const checkShouldShowTierModal = async () => {
+    const checkShouldShowTierModal = () => { // Removed async as loadUserProfile is handled by context
       if (!isAuthenticated || authIsLoading || userProfileLoading) return;
       
-      // Check if we have user profile data and if they haven't seen the modal
       if (userProfile && !userProfile.has_seen_paywall_modal) {
-        // Show modal after a brief delay to ensure smooth UX
         setTimeout(() => {
           setShowTierSelectionModal(true);
         }, 1000);
@@ -263,8 +229,8 @@ function App() {
     if (!isAuthenticated) { alert(LOGIN_REQUIRED_FOR_SAVE_MESSAGE); return; }
     setIsDetailsViewBusy(true);
     try {
-      const token = await getAuthToken();
-      if (!token) { setIsDetailsViewBusy(false); return; } // Reset on early exit
+      const token = await getAuthToken(); // From context
+      if (!token) { setIsDetailsViewBusy(false); return; }
       const updatedVersionData = await apiUpdateVersionNotes(promptId, versionIdStr, notes, token);
       setPromptsData(prev => {
         const newPromptData = { ...prev[promptId] };
@@ -274,7 +240,7 @@ function App() {
         return { ...prev, [promptId]: newPromptData };
       });
     } catch (err) {
-      alert(`An error occurred while saving notes: ${err.message}. Please try again.`);
+      toast.error(`An error occurred while saving notes: ${err.message}. Please try again.`);
     } finally {
       setIsDetailsViewBusy(false);
     }
@@ -284,7 +250,7 @@ function App() {
     if (!isAuthenticated) { alert(LOGIN_REQUIRED_FOR_SAVE_MESSAGE); return; }
     setIsDetailsViewBusy(true);
     try {
-      const token = await getAuthToken();
+      const token = await getAuthToken(); // From context
       if (!token) { setIsDetailsViewBusy(false); return; }
       const updatedPrompt = await apiAddTag(promptId, tagData, token);
       setPromptsData(prev => ({ ...prev, [promptId]: updatedPrompt }));
@@ -299,7 +265,7 @@ function App() {
     if (!isAuthenticated) { alert(LOGIN_REQUIRED_FOR_SAVE_MESSAGE); return; }
     setIsDetailsViewBusy(true);
     try {
-      const token = await getAuthToken();
+      const token = await getAuthToken(); // From context
       if (!token) { setIsDetailsViewBusy(false); return; }
       const updatedPrompt = await apiRemoveTag(promptId, tagName, token);
       setPromptsData(prev => ({ ...prev, [promptId]: updatedPrompt }));
@@ -323,12 +289,11 @@ function App() {
       model_id_used: model_id_used  // Pass through from PlaygroundView
     };
 
-    setIsDetailsViewBusy(true); // Reuse details view busy state or create a playground busy state
+    setIsDetailsViewBusy(true);
     try {
-      const token = await getAuthToken();
+      const token = await getAuthToken(); // From context
       if (!token) { setIsDetailsViewBusy(false); return; }
       
-      // Use promptId from arguments, which should be the currently selectedPromptId
       const newVersion = await apiCreateVersion(promptId, versionData, token);
       
       setPromptsData(prev => {
@@ -339,11 +304,11 @@ function App() {
         }
         return { ...prev, [promptId]: updatedPrompt };
       });
-      setSelectedVersionId(newVersion.version_id); // Select the new version
-      setCurrentView('details'); // Switch to details view to see the new version
-      alert("New version saved successfully!");
+      setSelectedVersionId(newVersion.version_id);
+      setCurrentView('details');
+      toast.success("New version saved successfully!");
     } catch (err) {
-      alert(`An error occurred while saving the new version: ${err.message}. Please try again.`);
+      toast.error(`An error occurred while saving the new version: ${err.message}. Please try again.`);
     } finally {
       setIsDetailsViewBusy(false);
     }
@@ -386,13 +351,11 @@ function App() {
     }
 
     // Authenticated: save to backend
-    setIsDetailsViewBusy(true); // Assuming this modal submission is part of "DetailsView busy" concept
+    setIsDetailsViewBusy(true);
     try {
-      const token = await getAuthToken();
-      if (!token) { setIsDetailsViewBusy(false); return; } // Should ideally not happen if isAuthenticated
+      const token = await getAuthToken(); // From context
+      if (!token) { setIsDetailsViewBusy(false); return; }
 
-      // The backend expects tags as an array of strings or objects {name: string, color: string}
-      // The current api.js createPrompt sends `tags: []` in `promptAPIData`.
       // We need to ensure the backend can handle the new tag structure if `formData.tags` is populated.
       // For now, let's assume backend expects `tags` as part of the main prompt body if it can handle it,
       // or it might need a separate step/different structure.
@@ -408,12 +371,11 @@ function App() {
       const newPrompt = await apiCreatePrompt(promptAPIData, token);
       setPromptsData(prev => ({ ...prev, [newPrompt.id]: newPrompt }));
       setSelectedPromptId(newPrompt.id);
-      setSelectedVersionId(newPrompt.latest_version); // This should be set by the backend
+      setSelectedVersionId(newPrompt.latest_version);
       setCurrentView('details');
       setShowNewPromptModal(false);
     } catch (err) {
-      alert(`An error occurred while creating the new prompt: ${err.message}. Please try again.`);
-      // Potentially leave modal open or provide other feedback
+      toast.error(`An error occurred while creating the new prompt: ${err.message}. Please try again.`);
     } finally {
       setIsDetailsViewBusy(false);
     }
@@ -435,8 +397,9 @@ function App() {
         setSelectedPromptId(null);
         setSelectedVersionId(null);
       }
+      toast.success("Prompt deleted successfully.");
     } catch (err) {
-      alert(`An error occurred while deleting the prompt: ${err.message}. Please try again.`);
+      toast.error(`An error occurred while deleting the prompt: ${err.message}. Please try again.`);
     } finally {
       setIsDetailsViewBusy(false);
     }
@@ -446,25 +409,19 @@ function App() {
   const handleTierSelection = useCallback(async (selectedTier) => {
     setTierSelectionSubmitting(true);
     try {
-      const token = await getAuthToken();
+      const token = await getAuthToken(); // From context
       if (!token) {
         setTierSelectionSubmitting(false);
         return;
       }
 
-      // Mark that user has seen the paywall modal
       await apiMarkPaywallModalSeen(token);
-      
-      // Refresh user profile to get updated has_seen_paywall_modal value
-      await loadUserProfile();
+      await loadUserProfile(); // From context - reloads profile data
 
       if (selectedTier === 'pro' || selectedTier === 'yearly') {
-        // TODO: Handle Pro tier subscription flow
-        // For now, just show a message
         alert('Pro tier subscription flow will be implemented in the next phase!');
       }
       
-      // Close the modal
       setShowTierSelectionModal(false);
     } catch (err) {
       console.error('Error handling tier selection:', err);
@@ -472,28 +429,26 @@ function App() {
     } finally {
       setTierSelectionSubmitting(false);
     }
-  }, [getAuthToken, loadUserProfile]);
+  }, [getAuthToken, loadUserProfile]); // getAuthToken, loadUserProfile from context
 
   const handleCloseTierModal = useCallback(() => {
-    if (tierSelectionSubmitting) return; // Prevent closing while submitting
+    if (tierSelectionSubmitting) return;
     
     setShowTierSelectionModal(false);
     
-    // Mark in backend that they've seen it
     const markSeen = async () => {
       try {
-        const token = await getAuthToken();
+        const token = await getAuthToken(); // From context
         if (token) {
           await apiMarkPaywallModalSeen(token);
-          // Refresh user profile to get updated has_seen_paywall_modal value
-          await loadUserProfile();
+          await loadUserProfile(); // From context
         }
       } catch (err) {
         console.error('Error marking paywall modal as seen:', err);
       }
     };
     markSeen();
-  }, [tierSelectionSubmitting, getAuthToken, loadUserProfile]);
+  }, [tierSelectionSubmitting, getAuthToken, loadUserProfile]); // getAuthToken, loadUserProfile from context
 
   const handleFilterChange = useCallback((event) => {
     setActiveFilterTag(event.target.value);
@@ -513,9 +468,8 @@ function App() {
       return "Model not selected. Please select a model in Playground.";
     }
     try {
-      const token = await getAuthToken();
+      const token = await getAuthToken(); // From context
       if (!token) return "Authentication error. Please try logging in again.";
-      // Pass llmProvider and modelId to the API call
       const response = await apiRunPlaygroundTest(promptText, llmProvider, modelId, token);
       if (response.error) {
         return `Error from LLM (${llmProvider} - ${modelId}): ${response.error}`;
@@ -525,26 +479,26 @@ function App() {
       console.error("Playground test API call failed:", err);
       return `Failed to run test with ${llmProvider} (${modelId}): ${err.message}`;
     }
-  }, [isAuthenticated, getAuthToken]);
+  }, [isAuthenticated, getAuthToken]); // getAuthToken from context
 
   const handleRenamePrompt = useCallback(async (promptIdToRename, newTitle) => {
     if (!isAuthenticated) { alert(LOGIN_REQUIRED_FOR_SAVE_MESSAGE); return; }
     try {
-      const token = await getAuthToken();
+      const token = await getAuthToken(); // From context
       if (!token) return;
       const updatedPrompt = await apiUpdatePrompt(promptIdToRename, { title: newTitle }, token);
       setPromptsData(prev => ({ ...prev, [promptIdToRename]: updatedPrompt }));
     } catch (err) {
       alert(`An error occurred while renaming the prompt: ${err.message}. Please try again.`);
     }
-  }, [isAuthenticated, getAuthToken]);
+  }, [isAuthenticated, getAuthToken]); // getAuthToken from context
 
   const handleLogin = useCallback(() => {
-    loginWithRedirect();
+    loginWithRedirect(); // From context
   }, [loginWithRedirect]);
 
   const handleLogout = useCallback(() => {
-    logout({ logoutParams: { returnTo: window.location.origin } });
+    logout({ logoutParams: { returnTo: window.location.origin } }); // From context
   }, [logout]);
 
   const handleShowSettings = useCallback(() => {
@@ -582,6 +536,18 @@ function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-cartoon-bg-light text-cartoon-text">
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored" // Or "light", "dark"
+      />
       <Sidebar
         prompts={filteredPrompts}
         selectedPromptId={selectedPromptId}
@@ -590,12 +556,9 @@ function App() {
         onFilterChange={handleFilterChange}
         availableTags={availableTags}
         setShowSettingsModal={handleShowSettings}
+        // Sidebar will use context for auth state, user, userProfile, login, logout
+        // showSettingsModal prop is still fine for controlling visibility from App
         showSettingsModal={showSettingsModal && isAuthenticated}
-        isAuthenticated={isAuthenticated}
-        user={user}
-        userProfile={userProfile}
-        onLogin={handleLogin}
-        onLogout={handleLogout}
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
         onShowTemplates={handleShowTemplates}
@@ -639,13 +602,11 @@ function App() {
               onDeletePrompt={handleDeletePrompt}
               onRenamePrompt={handleRenamePrompt}
               availableTags={availableTags}
-              isAuthenticated={isAuthenticated}
-              userApiKeys={userApiKeys}
-              apiKeysLoading={apiKeysLoading}
+              // isAuthenticated, user, userProfile will come from context in MainContent
+              userApiKeys={userApiKeys} // Still passed as prop for now
+              apiKeysLoading={apiKeysLoading} // Still passed as prop
               isDetailsViewBusy={isDetailsViewBusy}
               onUseTemplate={handleUseTemplate}
-              user={user}
-              userProfile={userProfile}
               onShowTierModal={() => setShowTierSelectionModal(true)}
             />
           )}
@@ -661,22 +622,22 @@ function App() {
         isOpen={showNewPromptModal}
         onClose={() => {
           setShowNewPromptModal(false);
-          setTemplatePromptText(''); // Clear template text when modal closes
+          setTemplatePromptText('');
         }}
         onSubmit={handleSubmitNewPrompt}
         availableTags={availableTags}
         templatePromptText={templatePromptText}
       />
+      {/* SettingsModal will also be updated to use context for getAuthToken, isAuthenticated */}
       {showSettingsModal && isAuthenticated && (
         <SettingsModal
           showSettingsModal={showSettingsModal}
           setShowSettingsModal={setShowSettingsModal}
-          getAuthToken={getAuthToken}
-          isAuthenticated={isAuthenticated}
-          userApiKeys={userApiKeys}
-          apiKeysLoading={apiKeysLoading}
-          apiKeysError={apiKeysError}
-          refreshApiKeys={loadUserApiKeys}
+          // getAuthToken and isAuthenticated will be removed, use context instead
+          userApiKeys={userApiKeys} // Still passed as prop
+          apiKeysLoading={apiKeysLoading} // Still passed as prop
+          apiKeysError={apiKeysError} // Still passed as prop
+          refreshApiKeys={loadUserApiKeys} // Still passed as prop
         />
       )}
       
@@ -689,5 +650,12 @@ function App() {
     </div>
   );
 }
+
+// New App component that wraps AppContent with AuthProvider
+const App = () => (
+  <AuthProvider>
+    <AppContent />
+  </AuthProvider>
+);
 
 export default App;
